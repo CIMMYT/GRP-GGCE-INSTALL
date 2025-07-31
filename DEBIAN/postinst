@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+mkdir -p /etc/cimmyt-ggce-tool
+chmod 755 /etc/cimmyt-ggce-tool

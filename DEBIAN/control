@@ -1,0 +1,6 @@
+Package: cimmyt-ggce-tool
+Version: 2025.1.1
+Architecture: amd64
+Depends: docker-ce (>= 28.1.1)
+Maintainer: Juan Carlos Moreno Sanchez <j.m.sanchez@cimmyt.org>
+Description: Herramienta para la instlacion y actualizacion de Grin Global Community Edition

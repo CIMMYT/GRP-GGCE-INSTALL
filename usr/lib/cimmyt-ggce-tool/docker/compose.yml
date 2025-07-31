@@ -1,0 +1,149 @@
+services:
+  ggce-mssql:
+    image: mcr.microsoft.com/mssql/server:2022-CU19-ubuntu-22.04
+    container_name: ggce-mssql
+    restart: always
+    user: root
+    ports:
+      - '1401:1433'
+    env_file:
+      - path: /etc/cimmyt-ggce-tool/config.env
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_SA_PASSWORD: '${SA_PASSWORD}'
+      MSSQL_PID: '${MSSQL_PID}'
+      SA_PASSWORD: '${SA_PASSWORD}'
+      TZ: UTC
+      MSSQL_COLLATION: SQL_Latin1_General_CP1_CI_AS
+    volumes:
+      - ggce-database-store:/var/opt/mssql/data
+      - ggce-database-log:/var/opt/mssql/log
+      - ${FOLDER_STORE_GGCE}/mssql/dump:/var/opt/mssql/dump
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$SA_PASSWORD" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ggce-network
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT_MSSQL:-8g}
+
+  ggce-mssql-client:
+    build:
+      context: ./mssql-client
+      dockerfile: Dockerfile
+    container_name: ggce-mssql-client
+    env_file:
+      - path: /etc/cimmyt-ggce-tool/config.env
+    environment:
+      SA_PASSWORD: '${SA_PASSWORD}'
+      USER_DB: '${USER_DB}'
+      PASSWORD_DB: '${PASSWORD_DB}'
+      DB_NAME: '${DB_NAME}'
+    depends_on:
+      ggce-mssql:
+        condition: service_healthy # Wait for mssql to be healthy
+    volumes:
+      - ggce-data-api:/var/opt/mssql/dump:ro
+    networks:
+      - ggce-network
+
+# Mail server for development/testing
+  ggce-mail-server:
+    image: mailhog/mailhog
+    container_name: ggce-mail-server
+    restart: unless-stopped
+    env_file:
+      - path: /etc/cimmyt-ggce-tool/config.env
+    ports:
+      - "1025:1025" # SMTP port for applications
+      - "8025:8025" # Web UI to view emails
+    networks:
+      - ggce-network
+  ggce-api:
+    image: dockerhub.croptrust.org/grin-global/grin-global-server:${GG_CE_API_VERSION}
+    container_name: ggce-api-maize
+    env_file:
+      - path: /etc/cimmyt-ggce-tool/config.env
+    environment:
+      # Database connection
+      - DB_URL=jdbc:sqlserver://ggce-mssql:1433;DatabaseName=${DB_NAME}
+      - DB_USERNAME=${USER_DB}
+      - DB_PASSWORD=${PASSWORD_DB}
+      # GGCE URLs
+      - BASE_URL=${BASE_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+      # Advanced options
+      - CACHE_LIBRARY=ehcache
+      - JAVA_OPTIONS=-Xlog:gc -XX:+UseG1GC -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=90.0 -Djava.awt.headless=true -server -Dnetworkaddress.cache.ttl=60 -Dcom.sun.security.enableAIAcaIssuers=true --add-modules java.se --add-exports java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED
+    volumes:
+      - ${FOLDER_STORE_GGCE}/maize/api-data:/data/gringlobal
+    networks:
+      ggce-network:
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT_API:-4g}
+    restart: unless-stopped
+    depends_on:
+      - ggce-mssql
+      - ggce-mail-server
+    ports:
+      - '8082:8080'
+  ggce-ui:
+    image: dockerhub.croptrust.org/grin-global/grin-global-ui/gg-ce-web:${GG_CE_UI_VERSION}
+    container_name: ggce-ui-maize
+    ports:
+      - '82:3000'
+    env_file:
+      - path: /etc/cimmyt-ggce-tool/config.env
+    environment:
+      - API_URL=${BASE_URL}
+      - API_URL_INTERNAL=http://ggce-api-maize:8080
+      - ORIGIN=${FRONTEND_URL}
+      - NAME=CIMMYT Germplasm Bank
+      - NAME_SHORT=MAIZE
+      - 'MENU_COLOR=#477628'
+    networks:
+      ggce-network:
+    depends_on:
+      - ggce-api
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT_UI:-500m}
+    restart: unless-stopped
+
+  ggce-version-tracker:
+    build:
+      context: ./version-tracker
+      dockerfile: Dockerfile
+    container_name: ggce-version-tracker
+    env_file:
+      - path: /etc/cimmyt-ggce-tool/config.env
+    ports:
+      - "3010:8000"
+    volumes:
+      - ./version-tracker/data:/app/data
+    networks:
+      - ggce-network
+
+networks:
+  ggce-network:
+    external: true
+volumes:
+  ggce-database-store:
+    external: true
+  ggce-database-log:
+    external: true
+  ggce-data-api:
+    external: true
+
+
+
+
+    

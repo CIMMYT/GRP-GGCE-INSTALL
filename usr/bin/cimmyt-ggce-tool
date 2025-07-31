@@ -1,0 +1,121 @@
+#!/bin/bash
+
+source /usr/lib/cimmyt-ggce-tool/environment.sh
+source /usr/lib/cimmyt-ggce-tool/deployment.sh
+
+CONFIG_DIR="/etc/cimmyt-ggce-tool"
+TEMPLATE_DIR="/usr/share/cimmyt-ggce-tool"
+
+print_version() {
+  local package_name program_name version
+
+  # Default values for development or when not installed via a .deb package
+  program_name="CIMMYT - GGCE tool (dev)"
+  version="unknown"
+
+  if command -v dpkg &> /dev/null; then
+    # dpkg -S returns <package>:<path>
+    package_name=$(dpkg -S "$0" 2>/dev/null | cut -d: -f1)
+
+    if [ -n "$package_name" ]; then
+      # Get Program Name from Description and Version from dpkg status
+      # The 'Description' field in the debian/control file should contain the program name.
+      program_name=$(dpkg -s "$package_name" | grep '^Description:' | sed 's/^Description: //')
+      version=$(dpkg -s "$package_name" | grep '^Version:' | awk '{print $2}')
+    fi
+  fi
+
+  echo "CIMMYT's Germplasm Bank"
+  echo "$program_name"
+  echo "Version: $version"
+
+}
+
+confirm_clean_install () {
+    # Check if target .env file already exists
+    if [ -f "$target_file" ]; then
+        echo "ADVERTENCIA: Ya existe una instalacion de ggce en este equipo." >&2
+        echo "Antes de continuar, respalde su informacion. Al aceptar, se borrará la instalación anterior y se realizará una nueva." >&2
+        echo ""
+        read -p 'Si desea continuar, teclee "CONTINUAR" para continuar: ' confirmation
+
+        if [ "$confirmation" == "CONTINUAR" ]; then
+            echo "Confirmación aceptada. Eliminando la configuración anterior..."
+            if ! rm -f "$target_file"; then
+                echo "❌ Error: No se pudo eliminar '$target_file'. Verifique los permisos." >&2
+                return 1
+            fi
+        else
+            echo "❌ Error: Instalación cancelada por el usuario." >&2
+            return 1
+        fi
+    fi
+    return 0
+}
+
+run_install() {
+    local source_file="$TEMPLATE_DIR/env.example"
+    local target_file="$CONFIG_DIR/config.env"
+
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "❌ Error: Esta instalacion necesita de los privilegios de root." >&2
+        exit 1
+    fi
+
+    # if ! confirm_clean_install; then
+    #     exit 1
+    # fi
+    
+    if [ ! -f "$source_file" ]; then
+        echo "❌ Error: El archivo de plantilla '$source_file' no fue localizado." >&2
+        exit 1
+    fi
+
+    echo "=> Iniciando con la configuracion interactiva..."
+    if ! touch "$target_file"; then
+        echo "❌ Error: No se pudo crear el archivo de configuracion '$target_file'." >&2
+        exit 1
+    fi
+    echo "=> El archivo de configuracion '$target_file' fue creado."
+    echo "=> Presione enter para aceptar los valores por default que aparecene entre corchetes[]."
+    if ! environment::prepare_env_file; then
+        echo "❌ Error: Al crear el archivo de configuracion." >&2
+        exit 1
+    fi
+    echo "✅ Exito: La configuarcion fue creada con exito."
+
+    if ! deployment::prepare_resources; then
+        echo "❌ Error: al desplegar los servicios" >&2
+        exit 1
+    fi
+
+    echo "✅ Exito: Contenedores, volumnes e imagenes fueron implementados correctamente."
+
+    
+}
+
+
+
+case "$1" in
+  -v|--version)
+    print_version
+    ;;
+  -i|--install)
+    run_install
+    ;;
+  -s|--start)
+    deployment::start_resources
+    ;;
+  -st|--stop)
+    deployment::stop_resources
+    ;;
+  -r|--restart)
+    deployment::start_resources
+    deployment::stop_resources
+    ;;
+  *)
+    echo "Usage: $0 [-v|--version] [-i|--install]"
+    ;;
+esac
+
+exit 0

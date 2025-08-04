@@ -114,7 +114,22 @@ print_usage() {
 }
 
 run_update(){
-  deployment::list_remote_version
+  if ! deployment::stop_only_ggce; then
+    ui::echo-message "Error al intentar detener los servicios." "error"
+    exit 1
+  fi 
+  if ! deployment::list_remote_version; then
+    ui::echo-message "Error al intentar obtener las nuevas versiones." "error"
+    exit 1
+  fi
+  if ! environment::select_version; then
+    ui::echo-message "Error al intentar colocar las nuevas versiones." "error"
+    exit 1
+  fi
+  if ! deployment::start_only_ggce; then
+    ui::echo-message "Error al intentar iniciar los servicios." "error"
+    exit 1
+  fi
 }
 
 
@@ -131,14 +146,20 @@ case "$1" in
   -s|--server)
     case "$2" in
       --start)
-        deployment::start_resources
+        deployment::start_only_ggce
         ;;
       --stop)
-        deployment::stop_resources
+        deployment::stop_only_ggce
         ;;
       --restart)
-        deployment::stop_resources
+        deployment::stop_only_ggce
+        deployment::start_only_ggce
+        ;;
+      --start-all)
         deployment::start_resources
+        ;;
+      --stop-all)
+        deployment::stop_resources
         ;;
       *)
         ui::echo-message "Acción inválida para '$1'. Use --start, --stop, o --restart.." "warning"

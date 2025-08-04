@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source /usr/lib/cimmyt-ggce-tool/database.sh
+source /usr/lib/cimmyt-ggce-tool/ui.sh
 
 CONFIG_DIR="/etc/cimmyt-ggce-tool"
 TEMPLATE_DIR="/usr/share/cimmyt-ggce-tool"
@@ -124,7 +125,7 @@ environment::port_validation (){
 environment::validate_installation() {
     local file_env="$CONFIG_DIR/config.env"
 
-    if ! [-f "$file_env"]; then
+    if [[ ! -f "$file_env"]]; then
         ui::echo-message "El archivo $file_env no fue encontrado." "error"
         ui::echo-message "Confirme que ggce fue instalado con el comando -i."
         return 1
@@ -145,7 +146,51 @@ environment::validate_docker(){
 }
 
 environment::select_version(){
-    local file_env="$CONFIG_DIR/version-tracker/version.json"
+    local file_version="$CONFIG_DIR/version-tracker/version.json"
+    local file_env="$CONFIG_DIR/config.env"
 
+     if ! command -v jq &> /dev/null; then
+        ui::echo-message "'jq' no esta instalado y es necesario para esta caracteristica" "error"
+        ui::echo-message "Por favor instale 'jq' (e.g., 'sudo apt-get install jq')."
+        return 1
+    fi
+    ui::echo-message "Seleccione la version que desea utilizar."
+    (
+        set -e
+        local project_count
+        project_count=$(jq '.projects | length' "$file_version")
 
+        for i in $(seq 0 $((project_count - 1))); do
+            local project_name
+            local env_var
+            project_name=$(jq -r ".projects[$i].name" "$file_version")
+            env_var=$(jq -r ".projects[$i].env" "$file_version")
+            ui::echo-message "Seleccione la version para: $project_name (Actualizar la variable $env_var in el archivo de configuracion)"
+
+            mapfile -t versions_array < <(jq -r ".projects[$i].versions[]" "$file_version")
+            
+            select version in "${versions_array[@]}"; do
+                if [[ -n "$version" ]]; then
+                    ui::echo-message "Seleccione la version '$version' para $project_name."
+                    if grep -q "^${env_var}=" .env; then
+                        sed "s|^${env_var}=.*|${env_var}=${version}|" .env > .env.tmp && mv .env.tmp .env
+                        ui::echo-message "Actualizar la version $env_var en el archivo de configuracion." "success"
+                    else
+                        echo "${env_var}=${version}" >> .env
+                        ui::echo-message "Se agrego la nueva version $env_var al archivo de configuracion." "success"
+                    fi
+                    break
+                else
+                    ui::echo-message "La opcion no es valida intente nuevamente" "warning"
+                fi
+            done
+        done
+    )
+    if [ $? -ne 0 ]; then
+        ui::echo-message "No fue posible actualizar GGCE" "error"
+        return 1
+    fi
+    ui::echo-message "Se actualizaron las versiones de forma correcta" "success"
+    return 0
+ 
 }

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source /usr/lib/cimmyt-ggce-tool/database.sh
+source /usr/lib/cimmyt-ggce-tool/ui.sh
 
 CONFIG_DIR="/etc/cimmyt-ggce-tool"
 LIB_DIR="/usr/lib/cimmyt-ggce-tool"
@@ -96,14 +97,14 @@ deployment::start_resources() {
     local file_env="$CONFIG_DIR/config.env"
     local source_file_compose="$LIB_DIR/docker/compose.yml"
 
-    if environment::validate_docker; then
+    if ! environment::validate_docker; then
         return 1
     fi
-    if environment::validate_installation; then
+    if ! environment::validate_installation; then
         return 1
     fi
     ui::echo-message "Iniciando los servicios..."
-    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-mssql ggce-mail-server ggce-api ggce-ui
+    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-mssql ggce-api ggce-ui
     return 0
 }
 
@@ -111,21 +112,67 @@ deployment::stop_resources() {
     local file_env="$CONFIG_DIR/config.env"
     local source_file_compose="$LIB_DIR/docker/compose.yml"
     
-    if environment::validate_docker; then
+
+    if ! environment::validate_docker; then
+        ui::echo-message "El servicio de docker no esta instalado." "error"    
         return 1
     fi
-    if environment::validate_installation; then
+    if ! environment::validate_installation; then
+        ui::echo-message "No se ha instalado la herramienta." "error"    
         return 1
     fi
     ui::echo-message "Deteniendo los servicios..."
-    docker compose --env-file "$file_env" -f "$source_file_compose" down
+    docker compose --env-file "$file_env" -f "$source_file_compose" down 
+    return 0
+}
+
+deployment::stop_only_ggce() {
+    local file_env="$CONFIG_DIR/config.env"
+    local source_file_compose="$LIB_DIR/docker/compose.yml"
+    
+
+    if ! environment::validate_docker; then
+        ui::echo-message "El servicio de docker no esta instalado." "error"    
+        return 1
+    fi
+    if ! environment::validate_installation; then
+        ui::echo-message "No se ha instalado la herramienta." "error"    
+        return 1
+    fi
+    ui::echo-message "Deteniendo los servicios..."
+    docker compose --env-file "$file_env" -f "$source_file_compose" down ggce-api ggce-ui
+    return 0
+}
+
+deployment::start_only_ggce() {
+    local file_env="$CONFIG_DIR/config.env"
+    local source_file_compose="$LIB_DIR/docker/compose.yml"
+
+    if ! environment::validate_docker; then
+        return 1
+    fi
+    if ! environment::validate_installation; then
+        return 1
+    fi
+    ui::echo-message "Iniciando los servicios..."
+    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-api ggce-ui
     return 0
 }
 
 deployment::list_remote_version(){
     local file_env="$CONFIG_DIR/config.env"
     local source_file_compose="$LIB_DIR/docker/compose.yml"
+    local file_version="$CONFIG_DIR/version-tracker/version.json"
 
+    ui::echo-message "Buscando las nuevas versiones de GGCE."
     docker compose --env-file "$file_env" -f "$source_file_compose" build ggce-version-tracker
     docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-version-tracker
+
+    ui::echo-message "Validando la descarga."
+    if [ ! -f "$file_version" ]; then
+        ui::echo-message "No se genero el archivo '$file_version' con la informacion de las versiones." "error"
+        return 1
+    fi
+    return 0
+    
 }

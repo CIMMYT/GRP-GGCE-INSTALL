@@ -1,23 +1,28 @@
-# 🖥️ cimmyt-ggce-tool
+# CIMMYT ggce-tool
 
-Este script es el punto de entrada principal para la herramienta de despliegue de GGCE desarrollada por CIMMYT.
+Este script es el punto de entrada principal para la herramienta de despliegue de GGCE desarrollada por [CIMMYT](https://www.cimmyt.org).
 
-Automatiza la configuración, instalación y gestión de los servicios Docker requeridos por la aplicación [GGCE](https://ggce.genesys-pgr.org) (Germplasm Global Community Edition) .
-
+Automatiza la configuración, instalación y gestión de los servicios Docker requeridos por la aplicación [GGCE](https://ggce.genesys-pgr.org) (Germplasm Global Community Edition).
 
 ## 📌 Compatibilidad
 ✅ Compatible únicamente con sistemas Linux, específicamente Debian y Ubuntu (basados en APT y dpkg).
 
+## ✅ Prerrequisitos
+
+Antes de utilizar esta herramienta, asegúrese de que los siguientes componentes estén instalados en su sistema:
+
+-   **Docker Engine**: Para la gestión de contenedores.
+-   **Docker Compose (plugin)**: Para orquestar los servicios multi-contenedor. La herramienta verifica `docker compose version`.
+-   **jq**: Necesario para procesar datos JSON durante el proceso de actualización (`-u`).
+-   **Bash**: El intérprete de comandos para ejecutar los scripts.
+
 ## ⚙️ Funcionalidad
 El script realiza las siguientes funciones principales:
 
-* Carga los módulos necesarios (environment.sh, deployment.sh, ui.sh).
-
-* Gestiona la instalación interactiva de GGCE.
-
-* Administra los contenedores Docker de la aplicación (iniciar, detener, reiniciar).
-
-* Muestra información de versión basada en metadatos del paquete .deb.
+*   Carga los módulos necesarios (environment.sh, deployment.sh, ui.sh).
+*   Gestiona la instalación interactiva de GGCE.
+*   Administra los contenedores Docker de la aplicación (iniciar, detener, reiniciar, actualizar).
+*   Muestra información de versión basada en metadatos del paquete .deb.
 
 ## 📁 Rutas utilizadas
 |Ruta	|Propósito|
@@ -43,22 +48,25 @@ Inicia el asistente interactivo de instalación:
 
 * Inicia los contenedores asociados.
 
+### 🔄 -u o --update
+Busca nuevas versiones disponibles para los componentes de GGCE (API y UI) y permite al usuario seleccionar cuál instalar. Este proceso:
+1.  Detiene temporalmente los servicios de la aplicación (API y UI).
+2.  Descarga la lista de versiones disponibles.
+3.  Permite al usuario seleccionar las versiones a través de un menú interactivo.
+4.  Actualiza el archivo `config.env` con las nuevas versiones.
+5.  Reinicia los servicios de la aplicación.
+
 ### 🔧 -s o --server <acción>
 Administra los contenedores de GGCE. Las acciones disponibles son:
 
 |Acción	|Descripción|
 |---|---|
-|--start |	Inicia todos los servicios|
-|--stop |	Detiene y elimina los contenedores|
-|--restart |	Reinicia los servicios|
+|--start |	Inicia únicamente los servicios de la aplicación (API y UI). No inicia la base de datos.|
+|--stop |	Detiene únicamente los servicios de la aplicación (API y UI).|
+|--restart |	Reinicia los servicios de la aplicación (API y UI).|
+|--start-all | Inicia todos los servicios, incluyendo la base de datos (`ggce-mssql`).|
+|--stop-all | Detiene y elimina **todos** los contenedores de la aplicación, incluyendo la base de datos.|
 
-Ejemplos:
-
-```bash
-cimmyt-ggce-tool --server --start
-cimmyt-ggce-tool --server --stop
-cimmyt-ggce-tool --server --restart
-```
 ### 📄 -v o --version
 Muestra la información de versión del paquete (.deb) y la descripción del programa, si fue instalado con dpkg.
 
@@ -70,9 +78,13 @@ Muestra la información de versión del paquete (.deb) y la descripción del pro
 * El asistente de instalación valida contraseñas y formatos de memoria antes de guardar la configuración.
 
 ## 💡 Ejemplo de uso
+Instalar la aplicación por primera vez:
 ```bash
 sudo cimmyt-ggce-tool --install
 ```
 ```bash
 sudo cimmyt-ggce-tool --server --start
 ```
+Autor Juan Carlos Moreno Sanchez 
+* <j.m.sanchez@cgiar.org> 
+* <j.m.sanchez@cimmyt.org>

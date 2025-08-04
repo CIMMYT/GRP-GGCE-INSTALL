@@ -1,5 +1,6 @@
 FROM python:3.12-slim-bookworm
 
+LABEL maintainer="Juan Carlos Moreno Sanchez <j.m.sanchez@cgiar.org, j.m.sanchez@cimmyt.org>"
 
 WORKDIR /app
 

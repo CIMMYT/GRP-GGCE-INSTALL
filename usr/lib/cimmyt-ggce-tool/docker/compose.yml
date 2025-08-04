@@ -5,7 +5,7 @@ services:
     restart: always
     user: root
     ports:
-      - '1401:1433'
+      - '1400:1433'
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
@@ -52,18 +52,18 @@ services:
     networks:
       - ggce-network
 
-# Mail server for development/testing
-  ggce-mail-server:
-    image: mailhog/mailhog
-    container_name: ggce-mail-server
-    restart: unless-stopped
-    env_file:
-      - path: /etc/cimmyt-ggce-tool/config.env
-    ports:
-      - "1025:1025" # SMTP port for applications
-      - "8025:8025" # Web UI to view emails
-    networks:
-      - ggce-network
+# # Mail server for development/testing
+#   ggce-mail-server:
+#     image: mailhog/mailhog
+#     container_name: ggce-mail-server
+#     restart: unless-stopped
+#     env_file:
+#       - path: /etc/cimmyt-ggce-tool/config.env
+#     # ports:
+#     #   - "1025:1025" # SMTP port for applications
+#     #   - "8025:8025" # Web UI to view emails
+#     networks:
+#       - ggce-network
   ggce-api:
     image: dockerhub.croptrust.org/grin-global/grin-global-server:${GG_CE_API_VERSION}
     container_name: ggce-api-maize
@@ -91,14 +91,13 @@ services:
     restart: unless-stopped
     depends_on:
       - ggce-mssql
-      - ggce-mail-server
     ports:
-      - '8082:8080'
+      - '3002:8080'
   ggce-ui:
     image: dockerhub.croptrust.org/grin-global/grin-global-ui/gg-ce-web:${GG_CE_UI_VERSION}
     container_name: ggce-ui-maize
     ports:
-      - '82:3000'
+      - '3001:3000'
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
@@ -126,7 +125,7 @@ services:
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     ports:
-      - "3010:8000"
+      - "3002:8000"
     volumes:
       - ./version-tracker/data:/app/data
     networks:

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+source /usr/lib/cimmyt-ggce-tool/database.sh
+source /usr/lib/cimmyt-ggce-tool/ui.sh
+
 CONFIG_DIR="/etc/cimmyt-ggce-tool"
 TEMPLATE_DIR="/usr/share/cimmyt-ggce-tool"
 
@@ -9,7 +12,7 @@ environment::_validate_password_complexity() {
     local score=0
 
     if [ ${#password} -lt 8 ]; then
-        echo "-> La contraseña para '$var_name' es muy corta. Debe tener al menos 8 caracteres."
+        ui::echo-message "La contraseña para '$var_name' es muy corta. Debe tener al menos 8 caracteres." "warning"
         return 1
     fi
 
@@ -19,7 +22,7 @@ environment::_validate_password_complexity() {
     if [[ "$password" =~ [^A-Za-z0-9] ]]; then ((score++)); fi
 
     if [ "$score" -lt 3 ]; then
-        echo "-> La contraseña para '$var_name' no es suficientemente compleja. Debe contener caracteres de al menos tres de los siguientes cuatro conjuntos: letras mayúsculas, letras minúsculas, números y símbolos."
+        ui::echo-message "La contraseña para '$var_name' no es suficientemente compleja. Debe contener caracteres de al menos tres de los siguientes cuatro conjuntos: letras mayúsculas, letras minúsculas, números y símbolos." "warning"
         return 1
     fi
 
@@ -31,7 +34,7 @@ environment::_validate_memory_format() {
     local var_name="$2"
 
     if [[ ! "$memory_value" =~ ^[0-9]+[mgMG]$ ]]; then
-        echo "-> Formato inválido para '$var_name'. El valor debe ser un número seguido de 'm' para megabytes o 'g' para gigabytes (ej. 512m, 2g)."
+        ui::echo-message "Formato inválido para '$var_name'. El valor debe ser un número seguido de 'm' para megabytes o 'g' para gigabytes (ej. 512m, 2g)." "warning"
         return 1
     fi
 
@@ -43,17 +46,17 @@ environment::prepare_env_file() {
     local output_file="$CONFIG_DIR/config.env"
 
     if [[ ! -f "$example_file" ]]; then
-        echo "❌ Error: $example_file no encontrado. No se puede crear el archivo .env." >&2
+        ui::echo-message "El $example_file no fue encontrado. No se puede crear el archivo .env." "error"
         return 1
     fi
 
-    echo "--- Creando archivo .env desde $example_file ---"
+    ui::echo-message "Creando archivo .env desde $example_file ---"
     local temp_file="$(mktemp)"
     > "$temp_file"
 
     echo
-    echo "A continuación se le solicitará que configure las variables de entorno."
-    echo "Presione ENTER para aceptar el valor por defecto que se muestra entre corchetes []."
+    ui::echo-message "A continuación se le solicitará que configure las variables de entorno."
+    ui::echo-message "Presione ENTER para aceptar el valor por defecto que se muestra entre corchetes []."
     echo
 
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -94,6 +97,100 @@ environment::prepare_env_file() {
     done < "$example_file"
     mv "$temp_file" "$output_file"
     echo ""
-    echo "✅ Archivo creado: $output_file"
+    ui::echo-message "Archivo creado: $output_file" "success"
     return 0
+}
+
+environment::port_validation (){
+    local ports=(3001 3002 1400)
+    local all_ports_free=true
+    for port in "${ports[@]}"; do
+        if ss -tuln | grep -q ":$port "; then
+            ui::echo-message "Puerto $port está en uso." "error"
+            all_ports_free=false
+        else
+            ui::echo-message "Puerto $port está disponible."
+        fi
+    done
+
+    if [ "$all_ports_free" = false ]; then
+        ui::echo-message " Uno o más puertos están ocupados. Abortando..." "error"
+        return 1
+    fi
+
+    ui::echo-message "Todos los puertos requeridos están disponibles." "success"
+    return 0
+}
+
+environment::validate_installation() {
+    local file_env="$CONFIG_DIR/config.env"
+
+    if [ ! -f "$file_env" ]; then
+        ui::echo-message "El archivo $file_env no fue encontrado." "error"
+        ui::echo-message "Confirme que ggce fue instalado con el comando -i."
+        return 1
+    fi
+    return 0
+}
+
+environment::validate_docker(){
+    if ! command -v docker &> /dev/null; then
+        ui::echo-message "Docker no está instalado o no está en el PATH." "error"
+        return 1
+    fi
+    if ! docker compose version &> /dev/null; then
+        ui::echo-message "Docker Compose (plugin) no está instalado" "error"
+        return 1
+    fi
+    return 0
+}
+
+environment::select_version(){
+    local file_version="$CONFIG_DIR/version-tracker/version.json"
+    local file_env="$CONFIG_DIR/config.env"
+
+     if ! command -v jq &> /dev/null; then
+        ui::echo-message "'jq' no esta instalado y es necesario para esta caracteristica" "error"
+        ui::echo-message "Por favor instale 'jq' (e.g., 'sudo apt-get install jq')."
+        return 1
+    fi
+    ui::echo-message "Seleccione la version que desea utilizar."
+    (
+        set -e
+        local project_count
+        project_count=$(jq '.projects | length' "$file_version")
+
+        for i in $(seq 0 $((project_count - 1))); do
+            local project_name
+            local env_var
+            project_name=$(jq -r ".projects[$i].name" "$file_version")
+            env_var=$(jq -r ".projects[$i].env" "$file_version")
+            ui::echo-message "Seleccione la version para: $project_name (Actualizar la variable $env_var in el archivo de configuracion)"
+
+            mapfile -t versions_array < <(jq -r ".projects[$i].versions[]" "$file_version")
+            
+            select version in "${versions_array[@]}"; do
+                if [[ -n "$version" ]]; then
+                    ui::echo-message "Seleccionó la versión '$version' para $project_name."
+                    if grep -q "^${env_var}=" "$file_env"; then
+                        sed "s|^${env_var}=.*|${env_var}=${version}|" "$file_env" > "$file_env.tmp" && mv "$file_env.tmp" "$file_env"
+                        ui::echo-message "Se actualizó la variable $env_var en el archivo de configuración." "success"
+                    else
+                        echo "${env_var}=${version}" >> "$file_env"
+                        ui::echo-message "Se agregó la variable $env_var al archivo de configuración." "success"
+                    fi
+                    break
+                else
+                    ui::echo-message "La opción no es válida. Intente nuevamente." "warning"
+                fi
+            done
+        done
+    )
+    if [ $? -ne 0 ]; then
+        ui::echo-message "No fue posible actualizar GGCE" "error"
+        return 1
+    fi
+    ui::echo-message "Se actualizaron las versiones de forma correcta" "success"
+    return 0
+ 
 }

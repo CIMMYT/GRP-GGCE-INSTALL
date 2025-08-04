@@ -82,7 +82,7 @@ deployment::prepare_resources() {
     fi
     ui::echo-message "Creando el usuario de base de datos exitosamente." "success"
     ui::echo-message "Se inicio la aplicación GGCE-API."
-    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-mail-server ggce-api > /dev/null; then
+    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-api > /dev/null; then
         ui::echo-message "Al iniciar la aplicacion GGCE-API." "error"
         return 1
     fi

@@ -99,3 +99,24 @@ environment::prepare_env_file() {
     ui::echo-message "Archivo creado: $output_file" "success"
     return 0
 }
+
+environment::port_validation (){
+    local ports=(3001 3002 1400)
+    local all_free=true
+    for port in "${PORTS[@]}"; do
+        if ss -tuln | grep -q ":$port "; then
+            ui::echo-message "Puerto $port está en uso." "error"
+            ALL_FREE=false
+        else
+            ui::echo-message "Puerto $port está disponible."
+        fi
+    done
+
+    if [ "$ALL_FREE" = false ]; then
+        ui::echo-message " Uno o más puertos están ocupados. Abortando..." "error"
+        return 1
+    fi
+
+    ui::echo-message "Todos los puertos están libres." "success"
+    return 0
+}

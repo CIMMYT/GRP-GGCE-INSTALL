@@ -19,22 +19,16 @@ deployment::load_env() {
     return 0
 }
 
-deployment::_validate_docker(){
-    if ! command -v docker &> /dev/null; then
-        ui::echo-message "Docker no está instalado o no está en el PATH." "error"
-        exit 1
-    fi
-    if ! docker compose version &> /dev/null; then
-        ui::echo-message "Docker Compose (plugin) no está instalado" "error"
-        exit 1
-    fi
-    return 0
-}
+
 
 deployment::prepare_resources() {
     local file_env="$CONFIG_DIR/config.env"
     local source_file_compose="$LIB_DIR/docker/compose.yml"
-    if ! deployment::_validate_docker; then
+    if ! environment::validate_docker; then
+        return 1
+    fi
+
+    if ! environment::port_validation; then
         return 1
     fi
     docker compose --env-file $file_env -f $source_file_compose down
@@ -96,25 +90,16 @@ deployment::prepare_resources() {
     return 0
 }
 
-deployment::_validate_instalation() {
-    local file_env="$CONFIG_DIR/config.env"
 
-    if ! [-f "$file_env"]; then
-        ui::echo-message "El archivo $file_env no fue encontrado." "error"
-        ui::echo-message "Confirme que ggce fue instalado con el comando -i."
-        return 1
-    fi
-    return 0
-}
 
 deployment::start_resources() {
     local file_env="$CONFIG_DIR/config.env"
     local source_file_compose="$LIB_DIR/docker/compose.yml"
 
-    if ! deployment::_validate_docker; then
+    if environment::validate_docker; then
         return 1
     fi
-    if ! deployment::_validate_instalation; then
+    if environment::validate_installation; then
         return 1
     fi
     ui::echo-message "Iniciando los servicios..."
@@ -126,13 +111,21 @@ deployment::stop_resources() {
     local file_env="$CONFIG_DIR/config.env"
     local source_file_compose="$LIB_DIR/docker/compose.yml"
     
-    if ! deployment::_validate_docker; then
+    if environment::validate_docker; then
         return 1
     fi
-    if ! deployment::_validate_instalation; then
+    if environment::validate_installation; then
         return 1
     fi
     ui::echo-message "Deteniendo los servicios..."
     docker compose --env-file "$file_env" -f "$source_file_compose" down
     return 0
+}
+
+deployment::list_remote_version(){
+    local file_env="$CONFIG_DIR/config.env"
+    local source_file_compose="$LIB_DIR/docker/compose.yml"
+
+    docker compose --env-file "$file_env" -f "$source_file_compose" build ggce-version-tracker
+    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-version-tracker
 }

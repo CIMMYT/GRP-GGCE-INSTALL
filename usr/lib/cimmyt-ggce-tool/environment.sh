@@ -120,3 +120,32 @@ environment::port_validation (){
     ui::echo-message "Todos los puertos están libres." "success"
     return 0
 }
+
+environment::validate_installation() {
+    local file_env="$CONFIG_DIR/config.env"
+
+    if ! [-f "$file_env"]; then
+        ui::echo-message "El archivo $file_env no fue encontrado." "error"
+        ui::echo-message "Confirme que ggce fue instalado con el comando -i."
+        return 1
+    fi
+    return 0
+}
+
+environment::validate_docker(){
+    if ! command -v docker &> /dev/null; then
+        ui::echo-message "Docker no está instalado o no está en el PATH." "error"
+        return 1
+    fi
+    if ! docker compose version &> /dev/null; then
+        ui::echo-message "Docker Compose (plugin) no está instalado" "error"
+        return 1
+    fi
+    return 0
+}
+
+environment::select_version(){
+    local file_env="$CONFIG_DIR/version-tracker/version.json"
+
+
+}

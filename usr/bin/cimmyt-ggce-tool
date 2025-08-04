@@ -113,6 +113,10 @@ print_usage() {
     ui::echo-message "  $0 --server --stop" "help"
 }
 
+run_update(){
+  deployment::list_remote_version
+}
+
 
 case "$1" in
   -v|--version)
@@ -120,6 +124,9 @@ case "$1" in
     ;;
   -i|--install)
     run_install
+    ;;
+  -u|--update)
+    run_update
     ;;
   -s|--server)
     case "$2" in

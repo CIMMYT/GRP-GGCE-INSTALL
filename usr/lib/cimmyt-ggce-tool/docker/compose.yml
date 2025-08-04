@@ -127,7 +127,7 @@ services:
     ports:
       - "3002:8000"
     volumes:
-      - ./version-tracker/data:/app/data
+      - /etc/cimmyt-ggce-tool/version-tracker/data:/app/data
     networks:
       - ggce-network
 

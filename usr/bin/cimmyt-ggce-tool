@@ -115,19 +115,19 @@ print_usage() {
 
 run_update(){
   if ! deployment::stop_only_ggce; then
-    ui::echo-message "Error al intentar detener los servicios." "error"
+    ui::echo-message "Los servicios no se pueden detener." "error"
     exit 1
   fi 
   if ! deployment::list_remote_version; then
-    ui::echo-message "Error al intentar obtener las nuevas versiones." "error"
+    ui::echo-message "No se pudo acceder a las nuevas versiones" "error"
     exit 1
   fi
   if ! environment::select_version; then
-    ui::echo-message "Error al intentar colocar las nuevas versiones." "error"
+    ui::echo-message "Imposible actualizar las nuevas versiones." "error"
     exit 1
   fi
   if ! deployment::start_only_ggce; then
-    ui::echo-message "Error al intentar iniciar los servicios." "error"
+    ui::echo-message "Los servicios no pudieron iniciar." "error"
     exit 1
   fi
 }

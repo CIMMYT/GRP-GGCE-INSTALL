@@ -118,7 +118,7 @@ deployment::stop_resources() {
         return 1
     fi
     if ! environment::validate_installation; then
-        ui::echo-message "No se ha instalado la herramienta." "error"    
+        ui::echo-message "No se ha ejecutado el comando -i." "error"    
         return 1
     fi
     ui::echo-message "Deteniendo los servicios..."
@@ -136,7 +136,7 @@ deployment::stop_only_ggce() {
         return 1
     fi
     if ! environment::validate_installation; then
-        ui::echo-message "No se ha instalado la herramienta." "error"    
+        ui::echo-message "No se ha ejecutado el comando -i." "error"    
         return 1
     fi
     ui::echo-message "Deteniendo los servicios..."

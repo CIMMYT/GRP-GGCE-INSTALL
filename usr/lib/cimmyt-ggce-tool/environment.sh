@@ -103,29 +103,29 @@ environment::prepare_env_file() {
 
 environment::port_validation (){
     local ports=(3001 3002 1400)
-    local all_free=true
-    for port in "${PORTS[@]}"; do
+    local all_ports_free=true
+    for port in "${ports[@]}"; do
         if ss -tuln | grep -q ":$port "; then
             ui::echo-message "Puerto $port está en uso." "error"
-            ALL_FREE=false
+            all_ports_free=false
         else
             ui::echo-message "Puerto $port está disponible."
         fi
     done
 
-    if [ "$ALL_FREE" = false ]; then
+    if [ "$all_ports_free" = false ]; then
         ui::echo-message " Uno o más puertos están ocupados. Abortando..." "error"
         return 1
     fi
 
-    ui::echo-message "Todos los puertos están libres." "success"
+    ui::echo-message "Todos los puertos requeridos están disponibles." "success"
     return 0
 }
 
 environment::validate_installation() {
     local file_env="$CONFIG_DIR/config.env"
 
-    if [[ ! -f "$file_env"]]; then
+    if [ ! -f "$file_env" ]; then
         ui::echo-message "El archivo $file_env no fue encontrado." "error"
         ui::echo-message "Confirme que ggce fue instalado con el comando -i."
         return 1
@@ -171,17 +171,17 @@ environment::select_version(){
             
             select version in "${versions_array[@]}"; do
                 if [[ -n "$version" ]]; then
-                    ui::echo-message "Seleccione la version '$version' para $project_name."
-                    if grep -q "^${env_var}=" .env; then
-                        sed "s|^${env_var}=.*|${env_var}=${version}|" .env > .env.tmp && mv .env.tmp .env
-                        ui::echo-message "Actualizar la version $env_var en el archivo de configuracion." "success"
+                    ui::echo-message "Seleccionó la versión '$version' para $project_name."
+                    if grep -q "^${env_var}=" "$file_env"; then
+                        sed "s|^${env_var}=.*|${env_var}=${version}|" "$file_env" > "$file_env.tmp" && mv "$file_env.tmp" "$file_env"
+                        ui::echo-message "Se actualizó la variable $env_var en el archivo de configuración." "success"
                     else
-                        echo "${env_var}=${version}" >> .env
-                        ui::echo-message "Se agrego la nueva version $env_var al archivo de configuracion." "success"
+                        echo "${env_var}=${version}" >> "$file_env"
+                        ui::echo-message "Se agregó la variable $env_var al archivo de configuración." "success"
                     fi
                     break
                 else
-                    ui::echo-message "La opcion no es valida intente nuevamente" "warning"
+                    ui::echo-message "La opción no es válida. Intente nuevamente." "warning"
                 fi
             done
         done

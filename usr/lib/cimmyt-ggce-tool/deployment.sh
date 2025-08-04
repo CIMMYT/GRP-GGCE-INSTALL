@@ -37,6 +37,7 @@ deployment::prepare_resources() {
     if ! deployment::_validate_docker; then
         return 1
     fi
+    docker compose --env-file $file_env -f $source_file_compose down
     echo "Preparando recursos de Docker"
     if ! docker network inspect ggce-network &>/dev/null; then
         ui::echo-message "Creando la red de Docker 'ggce-network'..."

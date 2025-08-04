@@ -89,6 +89,15 @@ run_install() {
     fi
     ui::echo-message "La configuarcion fue creada con exito." "success"
 
+    if ! deployment::list_remote_version; then
+      ui::echo-message "No se pudo acceder a las nuevas versiones." "error"
+      exit 1
+    fi
+    if ! environment::select_version; then
+      ui::echo-message "Imposible actualizar las nuevas versiones." "error"
+      exit 1
+    fi
+
     if ! deployment::prepare_resources; then
         ui::echo-message "No fue posible desplegar los servicios." "error"
         exit 1

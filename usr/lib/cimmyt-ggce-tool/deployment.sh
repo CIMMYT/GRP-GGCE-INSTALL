@@ -173,6 +173,8 @@ deployment::list_remote_version(){
         ui::echo-message "No se genero el archivo '$file_version' con la informacion de las versiones." "error"
         return 1
     fi
+
+    docker compose --env-file "$file_env" -f "$source_file_compose" down ggce-version-tracker
     return 0
     
 }

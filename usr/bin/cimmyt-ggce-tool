@@ -2,6 +2,8 @@
 
 source /usr/lib/cimmyt-ggce-tool/environment.sh
 source /usr/lib/cimmyt-ggce-tool/deployment.sh
+source /usr/lib/cimmyt-ggce-tool/ui.sh
+
 
 CONFIG_DIR="/etc/cimmyt-ggce-tool"
 TEMPLATE_DIR="/usr/share/cimmyt-ggce-tool"
@@ -24,29 +26,27 @@ print_version() {
       version=$(dpkg -s "$package_name" | grep '^Version:' | awk '{print $2}')
     fi
   fi
-
-  echo "CIMMYT's Germplasm Bank"
-  echo "$program_name"
-  echo "Version: $version"
+  ui::echo-message "CIMMYT's Germplasm Bank"
+  ui::echo-message "$program_name"
+  ui::echo-message "Version: $version"
 
 }
 
 confirm_clean_install () {
     # Check if target .env file already exists
     if [ -f "$target_file" ]; then
-        echo "ADVERTENCIA: Ya existe una instalacion de ggce en este equipo." >&2
-        echo "Antes de continuar, respalde su informacion. Al aceptar, se borrará la instalación anterior y se realizará una nueva." >&2
-        echo ""
+        ui::echo-message "Ya existe una instalacion de ggce en este equipo." "warning"
+        ui::echo-message "Antes de continuar, respalde su informacion." "warning"
+        ui::echo-message "Al aceptar, se borrará la instalación anterior y se realizará una nueva." "warning"
         read -p 'Si desea continuar, teclee "CONTINUAR" para continuar: ' confirmation
-
         if [ "$confirmation" == "CONTINUAR" ]; then
-            echo "Confirmación aceptada. Eliminando la configuración anterior..."
+            ui::echo-message "Confirmación aceptada. Eliminando la configuración anterior..." "warning"
             if ! rm -f "$target_file"; then
-                echo "❌ Error: No se pudo eliminar '$target_file'. Verifique los permisos." >&2
+                ui::echo-message "No se pudo eliminar '$target_file'. Verifique los permisos." "error"
                 return 1
             fi
         else
-            echo "❌ Error: Instalación cancelada por el usuario." >&2
+            ui::echo-message "Instalación cancelada por el usuario." "error"
             return 1
         fi
     fi
@@ -58,42 +58,55 @@ run_install() {
     local target_file="$CONFIG_DIR/config.env"
 
     if [ "$(id -u)" -ne 0 ]; then
-        echo "❌ Error: Esta instalacion necesita de los privilegios de root." >&2
+        ui::echo-message "Esta instalacion necesita de los privilegios de root." "error"
         exit 1
     fi
 
-    # if ! confirm_clean_install; then
-    #     exit 1
-    # fi
+    if ! confirm_clean_install; then
+        exit 1
+    fi
     
     if [ ! -f "$source_file" ]; then
-        echo "❌ Error: El archivo de plantilla '$source_file' no fue localizado." >&2
+        ui::echo-message "El archivo de plantilla '$source_file' no fue localizado." "error"
         exit 1
     fi
 
-    echo "=> Iniciando con la configuracion interactiva..."
+    ui::echo-message "Iniciando con la configuracion interactiva..."
     if ! touch "$target_file"; then
-        echo "❌ Error: No se pudo crear el archivo de configuracion '$target_file'." >&2
+        ui::echo-message "No se pudo crear el archivo de configuracion '$target_file'." "error"
         exit 1
     fi
-    echo "=> El archivo de configuracion '$target_file' fue creado."
-    echo "=> Presione enter para aceptar los valores por default que aparecene entre corchetes[]."
+    ui::echo-message "El archivo de configuracion '$target_file' fue creado." "success"
+    ui::echo-message "Presione enter para aceptar los valores por default que aparecene entre corchetes[]."
     if ! environment::prepare_env_file; then
-        echo "❌ Error: Al crear el archivo de configuracion." >&2
+        ui::echo-message "Al crear el archivo de configuracion." "error"
         exit 1
     fi
-    echo "✅ Exito: La configuarcion fue creada con exito."
+    ui::echo-message "La configuarcion fue creada con exito." "success"
 
     if ! deployment::prepare_resources; then
-        echo "❌ Error: al desplegar los servicios" >&2
+        ui::echo-message "No fue posible desplegar los servicios." "error"
         exit 1
     fi
-
-    echo "✅ Exito: Contenedores, volumnes e imagenes fueron implementados correctamente."
-
-    
+    ui::echo-message "Contenedores, volumnes e imagenes fueron implementados correctamente." "success"
 }
 
+print_usage() {
+    ui::echo-message "Uso: $0 <comando> [opciones]" "help"
+    echo 
+    ui::echo-message "Herramienta de CIMMYT para la gestión de las aplicaciones Grin Global Community Edition (GGCE)." "help"
+    echo 
+    ui::echo-message "Comandos:" "help"
+    ui::echo-message "  -i, --install              Ejecuta la instalación y el despliegue interactivo." "help"
+    ui::echo-message "  -s, --server <acción>      Gestiona los contenedores del servidor." "help"
+    ui::echo-message "                             Acciones: --start, --stop, --restart" "help"
+    ui::echo-message "  -v, --version              Muestra la información de la versión." "help"
+    echo 
+    ui::echo-message "Ejemplos:" "help"
+    ui::echo-message "  $0 --install" "help"
+    ui::echo-message "  $0 --server --start" "help"
+    ui::echo-message "  $0 --server --stop" "help"
+}
 
 
 case "$1" in
@@ -103,18 +116,28 @@ case "$1" in
   -i|--install)
     run_install
     ;;
-  -s|--start)
-    deployment::start_resources
-    ;;
-  -st|--stop)
-    deployment::stop_resources
-    ;;
-  -r|--restart)
-    deployment::start_resources
-    deployment::stop_resources
+  -s|--server)
+    case "$2" in
+      --start)
+        deployment::start_resources
+        ;;
+      --stop)
+        deployment::stop_resources
+        ;;
+      --restart)
+        deployment::stop_resources
+        deployment::start_resources
+        ;;
+      *)
+        ui::echo-message "Acción inválida para '$1'. Use --start, --stop, o --restart.." "warning"
+        print_usage
+        exit 1
+        ;;
+    esac
     ;;
   *)
-    echo "Usage: $0 [-v|--version] [-i|--install]"
+    print_usage
+    exit 1
     ;;
 esac
 

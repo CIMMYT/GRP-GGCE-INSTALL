@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source /usr/lib/cimmyt-ggce-tool/database.sh
+
 CONFIG_DIR="/etc/cimmyt-ggce-tool"
 TEMPLATE_DIR="/usr/share/cimmyt-ggce-tool"
 
@@ -9,7 +11,7 @@ environment::_validate_password_complexity() {
     local score=0
 
     if [ ${#password} -lt 8 ]; then
-        echo "-> La contraseña para '$var_name' es muy corta. Debe tener al menos 8 caracteres."
+        ui::echo-message "La contraseña para '$var_name' es muy corta. Debe tener al menos 8 caracteres." "warning"
         return 1
     fi
 
@@ -19,7 +21,7 @@ environment::_validate_password_complexity() {
     if [[ "$password" =~ [^A-Za-z0-9] ]]; then ((score++)); fi
 
     if [ "$score" -lt 3 ]; then
-        echo "-> La contraseña para '$var_name' no es suficientemente compleja. Debe contener caracteres de al menos tres de los siguientes cuatro conjuntos: letras mayúsculas, letras minúsculas, números y símbolos."
+        ui::echo-message "La contraseña para '$var_name' no es suficientemente compleja. Debe contener caracteres de al menos tres de los siguientes cuatro conjuntos: letras mayúsculas, letras minúsculas, números y símbolos." "warning"
         return 1
     fi
 
@@ -31,7 +33,7 @@ environment::_validate_memory_format() {
     local var_name="$2"
 
     if [[ ! "$memory_value" =~ ^[0-9]+[mgMG]$ ]]; then
-        echo "-> Formato inválido para '$var_name'. El valor debe ser un número seguido de 'm' para megabytes o 'g' para gigabytes (ej. 512m, 2g)."
+        ui::echo-message "Formato inválido para '$var_name'. El valor debe ser un número seguido de 'm' para megabytes o 'g' para gigabytes (ej. 512m, 2g)." "warning"
         return 1
     fi
 
@@ -43,17 +45,17 @@ environment::prepare_env_file() {
     local output_file="$CONFIG_DIR/config.env"
 
     if [[ ! -f "$example_file" ]]; then
-        echo "❌ Error: $example_file no encontrado. No se puede crear el archivo .env." >&2
+        ui::echo-message "El $example_file no fue encontrado. No se puede crear el archivo .env." "error"
         return 1
     fi
 
-    echo "--- Creando archivo .env desde $example_file ---"
+    ui::echo-message "Creando archivo .env desde $example_file ---"
     local temp_file="$(mktemp)"
     > "$temp_file"
 
     echo
-    echo "A continuación se le solicitará que configure las variables de entorno."
-    echo "Presione ENTER para aceptar el valor por defecto que se muestra entre corchetes []."
+    ui::echo-message "A continuación se le solicitará que configure las variables de entorno."
+    ui::echo-message "Presione ENTER para aceptar el valor por defecto que se muestra entre corchetes []."
     echo
 
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -94,6 +96,6 @@ environment::prepare_env_file() {
     done < "$example_file"
     mv "$temp_file" "$output_file"
     echo ""
-    echo "✅ Archivo creado: $output_file"
+    ui::echo-message "Archivo creado: $output_file" "success"
     return 0
 }

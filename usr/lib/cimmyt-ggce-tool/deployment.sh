@@ -96,13 +96,27 @@ deployment::prepare_resources() {
     return 0
 }
 
+deployment::_validate_instalation() {
+    local file_env="$CONFIG_DIR/config.env"
+
+    if ! [-f "$file_env"]; then
+        ui::echo-message "El archivo $file_env no fue encontrado." "error"
+        ui::echo-message "Confirme que ggce fue instalado con el comando -i."
+        return 1
+    fi
+    return 0
+}
+
 deployment::start_resources() {
     local file_env="$CONFIG_DIR/config.env"
     local source_file_compose="$LIB_DIR/docker/compose.yml"
+
     if ! deployment::_validate_docker; then
         return 1
     fi
-
+    if ! deployment::_validate_instalation; then
+        return 1
+    fi
     ui::echo-message "Iniciando los servicios..."
     docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-mssql ggce-mail-server ggce-api ggce-ui
     return 0
@@ -111,10 +125,13 @@ deployment::start_resources() {
 deployment::stop_resources() {
     local file_env="$CONFIG_DIR/config.env"
     local source_file_compose="$LIB_DIR/docker/compose.yml"
+    
     if ! deployment::_validate_docker; then
         return 1
     fi
-
+    if ! deployment::_validate_instalation; then
+        return 1
+    fi
     ui::echo-message "Deteniendo los servicios..."
     docker compose --env-file "$file_env" -f "$source_file_compose" down
     return 0

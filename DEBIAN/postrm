@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# postrm script for cimmyt-ggce-tool
+# This script is executed after the package is removed.
+
+set -e
+
+if [ "$1" = "purge" ]; then
+    # On purge, we remove the entire configuration directory.
+    # This cleans up everything, including the main config file and any
+    # subdirectories created at runtime.
+    rm -rf /etc/cimmyt-ggce-tool/version-tracker
+    rm -f /etc/cimmyt-ggce-tool/config.env
+    rm -rf /etc/cimmyt-ggce-tool
+fi
+
+exit 0

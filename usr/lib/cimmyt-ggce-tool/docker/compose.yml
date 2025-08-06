@@ -66,7 +66,7 @@ services:
 #       - ggce-network
   ggce-api:
     image: dockerhub.croptrust.org/grin-global/grin-global-server:${GG_CE_API_VERSION}
-    container_name: ggce-api-maize
+    container_name: ggce-api
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
@@ -95,7 +95,7 @@ services:
       - '3002:8080'
   ggce-ui:
     image: dockerhub.croptrust.org/grin-global/grin-global-ui/gg-ce-web:${GG_CE_UI_VERSION}
-    container_name: ggce-ui-maize
+    container_name: ggce-ui
     ports:
       - '3001:3000'
     env_file:

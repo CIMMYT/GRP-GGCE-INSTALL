@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e
 mkdir -p /etc/cimmyt-ggce-tool/version-tracker
 chmod 755 /etc/cimmyt-ggce-tool/version-tracker

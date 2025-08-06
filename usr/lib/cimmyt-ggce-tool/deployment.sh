@@ -167,9 +167,12 @@ deployment::list_remote_version(){
     ui::echo-message "Buscando las nuevas versiones de GGCE."
     docker compose --env-file "$file_env" -f "$source_file_compose" build ggce-version-tracker
     docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-version-tracker
-
+    ui::echo-message "Esperando 10 segundos para que el servicio de versiones genere el archivo..."
+    sleep 10
     ui::echo-message "Validando la descarga."
     if [ ! -f "$file_version" ]; then
+        ui::echo-message "Contenido de $(dirname "$file_version"):" "warning"
+        ls -la "$(dirname "$file_version")"
         ui::echo-message "No se genero el archivo '$file_version' con la informacion de las versiones." "error"
         return 1
     fi

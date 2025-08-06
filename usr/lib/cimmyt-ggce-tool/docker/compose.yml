@@ -52,18 +52,6 @@ services:
     networks:
       - ggce-network
 
-# # Mail server for development/testing
-#   ggce-mail-server:
-#     image: mailhog/mailhog
-#     container_name: ggce-mail-server
-#     restart: unless-stopped
-#     env_file:
-#       - path: /etc/cimmyt-ggce-tool/config.env
-#     # ports:
-#     #   - "1025:1025" # SMTP port for applications
-#     #   - "8025:8025" # Web UI to view emails
-#     networks:
-#       - ggce-network
   ggce-api:
     image: dockerhub.croptrust.org/grin-global/grin-global-server:${GG_CE_API_VERSION}
     container_name: ggce-api
@@ -81,7 +69,7 @@ services:
       - CACHE_LIBRARY=ehcache
       - JAVA_OPTIONS=-Xlog:gc -XX:+UseG1GC -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=90.0 -Djava.awt.headless=true -server -Dnetworkaddress.cache.ttl=60 -Dcom.sun.security.enableAIAcaIssuers=true --add-modules java.se --add-exports java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED
     volumes:
-      - ${FOLDER_STORE_GGCE}/maize/api-data:/data/gringlobal
+      - ${FOLDER_STORE_GGCE}/api-data:/data/gringlobal
     networks:
       ggce-network:
     deploy:
@@ -102,10 +90,10 @@ services:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
       - API_URL=${BASE_URL}
-      - API_URL_INTERNAL=http://ggce-api-maize:8080
+      - API_URL_INTERNAL=http://ggce-api:8080
       - ORIGIN=${FRONTEND_URL}
-      - NAME=CIMMYT Germplasm Bank
-      - NAME_SHORT=MAIZE
+      - NAME=Germplasm Bank
+      - NAME_SHORT=BANK
       - 'MENU_COLOR=#477628'
     networks:
       ggce-network:

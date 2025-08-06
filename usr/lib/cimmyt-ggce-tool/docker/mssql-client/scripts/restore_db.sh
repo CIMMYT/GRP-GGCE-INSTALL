@@ -35,3 +35,5 @@ echo "Executing restore command..."
 /opt/mssql-tools/bin/sqlcmd -S ggce-mssql -U sa -P "$SA_PASSWORD" -Q "$SQL_COMMAND"
 
 echo "--- Restore for [$DB_NAME] completed successfully. ---"
+
+exit 0

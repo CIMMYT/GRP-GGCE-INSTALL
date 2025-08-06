@@ -1,11 +1,39 @@
 services:
+  ggce-traefik:
+    image: traefik:v2.11
+    container_name: ggce-traefik
+    restart: always
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # Global HTTP to HTTPS redirection
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      # Let's Encrypt configuration
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true" # Use http-01 challenge
+      - "--certificatesresolvers.myresolver.acme.email=${LETSENCRYPT_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Dashboard de Traefik (para depuración)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ggce-traefik-data:/letsencrypt
+    networks:
+      - ggce-network
+
   ggce-mssql:
     image: mcr.microsoft.com/mssql/server:2022-CU19-ubuntu-22.04
     container_name: ggce-mssql
     restart: always
     user: root
     ports:
-      - '1400:1433'
+      - "1433:1433"
+    command:
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
@@ -63,13 +91,19 @@ services:
       - DB_USERNAME=${USER_DB}
       - DB_PASSWORD=${PASSWORD_DB}
       # GGCE URLs
-      - BASE_URL=${BASE_URL}
+      - BASE_URL=${API_URL}
       - FRONTEND_URL=${FRONTEND_URL}
       # Advanced options
       - CACHE_LIBRARY=ehcache
       - JAVA_OPTIONS=-Xlog:gc -XX:+UseG1GC -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=90.0 -Djava.awt.headless=true -server -Dnetworkaddress.cache.ttl=60 -Dcom.sun.security.enableAIAcaIssuers=true --add-modules java.se --add-exports java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED
     volumes:
       - ${FOLDER_STORE_GGCE}/api-data:/data/gringlobal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ggce-api.rule=Host(`${API_URL}`)"
+      - "traefik.http.routers.ggce-api.entrypoints=websecure"
+      - "traefik.http.routers.ggce-api.tls.certresolver=myresolver"
+      - "traefik.http.services.ggce-api.loadbalancer.server.port=8080"
     networks:
       ggce-network:
     deploy:
@@ -79,22 +113,24 @@ services:
     restart: unless-stopped
     depends_on:
       - ggce-mssql
-    ports:
-      - '3002:8080'
   ggce-ui:
     image: dockerhub.croptrust.org/grin-global/grin-global-ui/gg-ce-web:${GG_CE_UI_VERSION}
     container_name: ggce-ui
-    ports:
-      - '3001:3000'
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
-      - API_URL=${BASE_URL}
+      - API_URL=${API_URL}
       - API_URL_INTERNAL=http://ggce-api:8080
       - ORIGIN=${FRONTEND_URL}
       - NAME=Germplasm Bank
       - NAME_SHORT=BANK
       - 'MENU_COLOR=#477628'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ggce-ui.rule=Host(`${FRONTEND_URL}`)"
+      - "traefik.http.routers.ggce-ui.entrypoints=websecure"
+      - "traefik.http.routers.ggce-ui.tls.certresolver=myresolver"
+      - "traefik.http.services.ggce-ui.loadbalancer.server.port=3000"
     networks:
       ggce-network:
     depends_on:
@@ -112,8 +148,6 @@ services:
     container_name: ggce-version-tracker
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
-    ports:
-      - "3002:8000"
     volumes:
       - /etc/cimmyt-ggce-tool/version-tracker:/app/data
     networks:
@@ -128,6 +162,8 @@ volumes:
   ggce-database-log:
     external: true
   ggce-data-api:
+    external: true
+  ggce-traefik-data:
     external: true
 
 

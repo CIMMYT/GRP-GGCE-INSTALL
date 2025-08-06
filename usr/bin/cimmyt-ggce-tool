@@ -143,6 +143,10 @@ run_update(){
   fi
 }
 
+run_db(){
+  deployment::db
+}
+
 
 case "$1" in
   -v|--version)
@@ -153,6 +157,9 @@ case "$1" in
     ;;
   -u|--update)
     run_update
+    ;;
+  -db)
+    run_db
     ;;
   -s|--server)
     case "$2" in

@@ -38,3 +38,5 @@ else
   echo "Please check SQL Server logs for more details, or verify directory permissions." >&2
   exit 1 # Exit with an error code
 fi
+
+exit 0

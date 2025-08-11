@@ -55,3 +55,5 @@ END"
 /opt/mssql-tools/bin/sqlcmd -S ggce-mssql -U sa -P "$SA_PASSWORD" -Q "$SQL_COMMAND"
 
 echo "--- Configuration for user [$DB_USER] completed. ---"
+
+exit 0

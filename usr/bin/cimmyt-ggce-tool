@@ -33,7 +33,6 @@ print_version() {
 }
 
 confirm_clean_install () {
-    # Check if target .env file already exists
     if [ -f "$target_file" ]; then
         ui::echo-message "Ya existe una instalacion de ggce en este equipo." "warning"
         ui::echo-message "Antes de continuar, respalde su informacion." "warning"
@@ -144,6 +143,10 @@ run_update(){
   fi
 }
 
+run_db(){
+  deployment::db
+}
+
 
 case "$1" in
   -v|--version)
@@ -154,6 +157,9 @@ case "$1" in
     ;;
   -u|--update)
     run_update
+    ;;
+  -db)
+    run_db
     ;;
   -s|--server)
     case "$2" in

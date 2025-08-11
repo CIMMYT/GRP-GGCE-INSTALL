@@ -1,11 +1,28 @@
 services:
+  ggce-traefik:
+    image: traefik:v2.10
+    container_name: ggce-traefik
+    restart: always
+    command:
+      - --configFile=/opt/traefik/traefik.yml
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik/:/opt/traefik/
+    networks:
+      - ggce-network
+
   ggce-mssql:
     image: mcr.microsoft.com/mssql/server:2022-CU19-ubuntu-22.04
     container_name: ggce-mssql
     restart: always
     user: root
     ports:
-      - '1400:1433'
+      - "1433:1433"
+    command:
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
@@ -48,25 +65,13 @@ services:
       ggce-mssql:
         condition: service_healthy # Wait for mssql to be healthy
     volumes:
-      - ggce-data-api:/var/opt/mssql/dump:ro
+      - ${FOLDER_STORE_GGCE}/mssql/backup:/var/opt/mssql/dump:ro
     networks:
       - ggce-network
 
-# # Mail server for development/testing
-#   ggce-mail-server:
-#     image: mailhog/mailhog
-#     container_name: ggce-mail-server
-#     restart: unless-stopped
-#     env_file:
-#       - path: /etc/cimmyt-ggce-tool/config.env
-#     # ports:
-#     #   - "1025:1025" # SMTP port for applications
-#     #   - "8025:8025" # Web UI to view emails
-#     networks:
-#       - ggce-network
   ggce-api:
     image: dockerhub.croptrust.org/grin-global/grin-global-server:${GG_CE_API_VERSION}
-    container_name: ggce-api-maize
+    container_name: ggce-api
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
@@ -75,13 +80,18 @@ services:
       - DB_USERNAME=${USER_DB}
       - DB_PASSWORD=${PASSWORD_DB}
       # GGCE URLs
-      - BASE_URL=${BASE_URL}
-      - FRONTEND_URL=${FRONTEND_URL}
+      - BASE_URL=http://${API_URL}
+      - FRONTEND_URL=http://${FRONTEND_URL}
       # Advanced options
       - CACHE_LIBRARY=ehcache
       - JAVA_OPTIONS=-Xlog:gc -XX:+UseG1GC -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=90.0 -Djava.awt.headless=true -server -Dnetworkaddress.cache.ttl=60 -Dcom.sun.security.enableAIAcaIssuers=true --add-modules java.se --add-exports java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED
     volumes:
-      - ${FOLDER_STORE_GGCE}/maize/api-data:/data/gringlobal
+      - ggce-data-api:/data/gringlobal
+    labels:
+      traefik.enable: 'true'
+      traefik.http.services.ggceapi.loadbalancer.server.port: 8080
+      traefik.http.routers.ggceapi_http.rule: Host(`${API_URL}`)
+      traefik.http.routers.ggceapi_http.entrypoints: http
     networks:
       ggce-network:
     deploy:
@@ -91,22 +101,27 @@ services:
     restart: unless-stopped
     depends_on:
       - ggce-mssql
-    ports:
-      - '3002:8080'
   ggce-ui:
     image: dockerhub.croptrust.org/grin-global/grin-global-ui/gg-ce-web:${GG_CE_UI_VERSION}
-    container_name: ggce-ui-maize
-    ports:
-      - '3001:3000'
+    container_name: ggce-ui
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
-      - API_URL=${BASE_URL}
-      - API_URL_INTERNAL=http://ggce-api-maize:8080
-      - ORIGIN=${FRONTEND_URL}
-      - NAME=CIMMYT Germplasm Bank
-      - NAME_SHORT=MAIZE
-      - 'MENU_COLOR=#477628'
+      - API_URL=http://${API_URL}
+      - API_URL_INTERNAL=http://ggce-api:8080
+      - ORIGIN=http://${FRONTEND_URL}
+      - NAME=${NAME_GGCE_APLICATION}
+      - NAME_SHORT=${NAME_GGCE_APLICATION_SORT}
+    labels:
+      traefik.enable: 'true'
+      traefik.http.services.ggceui.loadbalancer.server.port: 3000
+      traefik.http.services.ggceui.loadbalancer.healthcheck.path: /robots.txt
+      traefik.http.routers.ggceui_http.rule: Host(`${FRONTEND_URL}`)
+      traefik.http.routers.ggceui_http.entrypoints: http
+      traefik.http.middlewares.ggceui-redirect-http.redirectscheme.scheme: https
+      traefik.http.routers.ggceui.rule: Host(`${FRONTEND_URL}`)
+      traefik.http.routers.ggceui.entrypoints: https
+      traefik.http.routers.ggceui.tls: 'true'
     networks:
       ggce-network:
     depends_on:
@@ -124,8 +139,6 @@ services:
     container_name: ggce-version-tracker
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
-    ports:
-      - "3002:8000"
     volumes:
       - /etc/cimmyt-ggce-tool/version-tracker:/app/data
     networks:
@@ -140,6 +153,8 @@ volumes:
   ggce-database-log:
     external: true
   ggce-data-api:
+    external: true
+  ggce-traefik-data:
     external: true
 
 

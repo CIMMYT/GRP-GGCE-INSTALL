@@ -10,14 +10,27 @@ LIB_DIR="/usr/lib/cimmyt-ggce-tool"
 
 deployment::load_env() {
     local file_env="$CONFIG_DIR/config.env"
-    if [ -f $file_env ]; then
-        ui::echo-message "Cargando las varaibles del archivo $file_env..."
-        export $(grep -v '^#' $file_env | xargs)
+    if [ -f "$file_env" ]; then
+        ui::echo-message "Cargando las variables del archivo $file_env..."
+        # Use `set -a` and `source` for robustly loading and exporting variables.
+        # This correctly handles spaces, quotes, and special characters in values,
+        # unlike the previous `grep | xargs` method.
+        set -a
+        source "$file_env"
+        set +a
+        # Validar que las variables críticas se hayan cargado correctamente
+        if [ -n "$DB_NAME" ]; then
+            ui::echo-message "Variable DB_NAME cargada con éxito: '$DB_NAME'" "success"
+            return 0
+        else
+            ui::echo-message "La variable DB_NAME no está definida o está vacía en el archivo de configuración." "error"
+            ui::echo-message "Por favor, verifique su archivo '$file_env'." "error"
+            return 1
+        fi
     else
         ui::echo-message "El archivo $file_env no fue encontrado." "error"
         return 1
     fi
-    return 0
 }
 
 
@@ -43,7 +56,7 @@ deployment::prepare_resources() {
     fi
     ui::echo-message "La red de Docker 'ggce-network' está lista." "success"
 
-    local volumes_to_manage=("ggce-database-store" "ggce-database-log" "ggce-data-api")
+    local volumes_to_manage=("ggce-database-store" "ggce-database-log" "ggce-data-api" "ggce-traefik-data")
     ui::echo-message "Recreando los volúmenes de Docker: ${volumes_to_manage[*]}"
     for volume in "${volumes_to_manage[@]}"; do
         docker volume rm "$volume" &>/dev/null || true
@@ -63,30 +76,38 @@ deployment::prepare_resources() {
     fi
     ui::echo-message "El contenedor de base de datos fue creado." "success"
     ui::echo-message "Inicia el proceso de carga de las nuevas varaibles creadas por el usuario."
-    if !deployment::load_env &> /dev/null; then 
+    if ! deployment::load_env &> /dev/null; then 
         return 1
     fi
     ui::echo-message "Varaibles cargadas exitosamente." "success"
-    ui::echo-message "Creando base de datos en el contenedor."
-    if !database::create_database "$DB_NAME" &> /dev/null; then
+    ui::echo-message "Creando base de datos en el contenedor ${DB_NAME}."
+    if ! database::create_database "$DB_NAME"; then
         return 1
     fi
     ui::echo-message "Base de datos creada exitosamente." "success"
-    ui::echo-message "Creando usuario de base de datos y sus permisos."
-    if !database::create_user "$DB_NAME" "$USER_DB" "$PASSWORD_DB" &> /dev/null; then
+    ui::echo-message "Creando usuario de base de datos y sus permisos ${USER_DB} - ${PASSWORD_DB}."
+    if ! database::create_user "$DB_NAME" "$USER_DB" "$PASSWORD_DB"; then
         return 1
     fi
     ui::echo-message "Creando el usuario de base de datos exitosamente." "success"
-    ui::echo-message "Se inicio la aplicación GGCE-API."
+    ui::echo-message "Se da inicio el proxy GGCE-TRAEFIK."
+    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-traefik > /dev/null; then
+        ui::echo-message "No fue posible iniciar el proxy GGCE-TRAEFIK." "error"
+        return 1
+    fi
+    ui::echo-message "Inicio GGCE-TRAEFIK." "success"
+    ui::echo-message "Se da inicio la aplicación GGCE-API."
     if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-api > /dev/null; then
         ui::echo-message "Al iniciar la aplicacion GGCE-API." "error"
         return 1
     fi
-    ui::echo-message "Se inicio la aplicación GGCE-UI."
+    ui::echo-message "Inicio GGCE-API." "success"
+    ui::echo-message "Se da inicio la aplicación GGCE-UI."
     if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-ui > /dev/null; then
         ui::echo-message "No fue posible iniciar la aplicacion GGCE-UI." "error"
         return 1
     fi
+    ui::echo-message "Inicio GGCE-UI." "success"
 
     return 0
 }
@@ -104,7 +125,8 @@ deployment::start_resources() {
         return 1
     fi
     ui::echo-message "Iniciando los servicios..."
-    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-mssql ggce-api ggce-ui
+    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-traefik ggce-mssql 
+    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-api ggce-ui
     return 0
 }
 
@@ -167,14 +189,43 @@ deployment::list_remote_version(){
     ui::echo-message "Buscando las nuevas versiones de GGCE."
     docker compose --env-file "$file_env" -f "$source_file_compose" build ggce-version-tracker
     docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-version-tracker
-
+    sleep 10
     ui::echo-message "Validando la descarga."
     if [ ! -f "$file_version" ]; then
+        ui::echo-message "Contenido de $(dirname "$file_version"):" "warning"
+        ls -la "$(dirname "$file_version")"
         ui::echo-message "No se genero el archivo '$file_version' con la informacion de las versiones." "error"
+        return 1
+    else
+        docker compose --env-file "$file_env" -f "$source_file_compose" down ggce-version-tracker
+    fi
+    return 0
+    
+}
+
+deployment::db(){
+    local file_env="$CONFIG_DIR/config.env"
+    local source_file_compose="$LIB_DIR/docker/compose.yml"
+    
+    ui::echo-message "Preparando la base de datos y agregando la configuracion."
+    if ! docker compose --env-file $file_env -f $source_file_compose up -d ggce-mssql >/dev/null; then
+        ui::echo-message "No es posible iniciar la base de datos." "error"
         return 1
     fi
 
-    docker compose --env-file "$file_env" -f "$source_file_compose" down ggce-version-tracker
+    ui::echo-message "Inicia el proceso de carga de las nuevas varaibles creadas por el usuario."
+    if ! deployment::load_env &> /dev/null; then 
+        return 1
+    fi
+    ui::echo-message "Varaibles cargadas exitosamente." "success"
+    ui::echo-message "Creando base de datos en el contenedor ${DB_NAME}."
+    if ! database::create_database "$DB_NAME"; then
+        return 1
+    fi
+    ui::echo-message "Base de datos creada exitosamente." "success"
+    ui::echo-message "Creando usuario de base de datos y sus permisos ${USER_DB} - ${PASSWORD_DB}."
+    if ! database::create_user "$DB_NAME" "$USER_DB" "$PASSWORD_DB"; then
+        return 1
+    fi
     return 0
-    
 }

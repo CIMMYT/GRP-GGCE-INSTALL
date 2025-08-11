@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# postrm script for cimmyt-ggce-tool
+# This script is executed after the package is removed.
+
+set -e
+
+
+if [ "$1" = "purge" ]; then
+    # On purge, we remove the entire configuration directory and Docker volumes.
+    rm -rf /etc/cimmyt-ggce-tool
+
+    # Check if docker is available before trying to remove volumes.
+    # Use POSIX-compliant loop instead of bash array.
+    if command -v docker >/dev/null 2>&1; then
+        volumes_to_manage="ggce-database-store ggce-database-log ggce-data-api ggce-traefik-data"
+        for volume in $volumes_to_manage; do
+            docker volume rm "$volume" >/dev/null 2>&1 || true
+        done
+    fi
+fi
+
+exit 0

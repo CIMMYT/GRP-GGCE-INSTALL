@@ -59,6 +59,7 @@ environment::prepare_env_file() {
     ui::echo-message "Presione ENTER para aceptar el valor por defecto que se muestra entre corchetes []."
     echo
 
+
     while IFS= read -r line || [[ -n "$line" ]]; do
         if [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]]; then
             echo "$line" >> "$temp_file"
@@ -66,10 +67,12 @@ environment::prepare_env_file() {
         fi
         local var_name=$(echo "$line" | cut -d '=' -f 1)
         local default_value=$(echo "$line" | cut -d '=' -f 2-)
+        # Varaibles que no define el usuario.
         if [[ "$var_name" == "GG_CE_API_VERSION" || "$var_name" == "GG_CE_UI_VERSION" ]]; then
-            echo "$var_name=$default_value" >> "$temp_file"
+            echo "$line" >> "$temp_file"
             continue
         fi
+
         local user_input final_value
         if [[ "$var_name" == *PASSWORD* ]]; then
             while true; do
@@ -89,12 +92,18 @@ environment::prepare_env_file() {
                 fi
             done
         else
+            if [[ "$var_name" == "LETSENCRYPT_EMAIL" ]]; then
+                ui::echo-message "Este correo se usará para notificaciones de Let's Encrypt (ej. renovaciones de certificados). Asegúrese de que sea un correo válido y activo." "warning"
+            fi
             read -p "Ingrese el valor para '$var_name' [predeterminado: $default_value]: " user_input < /dev/tty
             final_value="${user_input:-$default_value}"
         fi
 
         echo "$var_name=$final_value" >> "$temp_file"
     done < "$example_file"
+
+
+
     mv "$temp_file" "$output_file"
     echo ""
     ui::echo-message "Archivo creado: $output_file" "success"
@@ -166,9 +175,10 @@ environment::select_version(){
             project_name=$(jq -r ".projects[$i].name" "$file_version")
             env_var=$(jq -r ".projects[$i].env" "$file_version")
             ui::echo-message "Seleccione la version para: $project_name (Actualizar la variable $env_var in el archivo de configuracion)"
-
             mapfile -t versions_array < <(jq -r ".projects[$i].versions[]" "$file_version")
-            
+            # Forzar a 'select' a mostrar las opciones en líneas nuevas
+            local OLD_COLUMNS=$COLUMNS
+            COLUMNS=1
             select version in "${versions_array[@]}"; do
                 if [[ -n "$version" ]]; then
                     ui::echo-message "Seleccionó la versión '$version' para $project_name."
@@ -184,6 +194,7 @@ environment::select_version(){
                     ui::echo-message "La opción no es válida. Intente nuevamente." "warning"
                 fi
             done
+            COLUMNS=$OLD_COLUMNS # Restaurar el valor original de COLUMNS
         done
     )
     if [ $? -ne 0 ]; then

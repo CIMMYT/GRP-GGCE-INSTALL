@@ -85,6 +85,12 @@ sudo cimmyt-ggce-tool --install
 ```bash
 sudo cimmyt-ggce-tool --server --start
 ```
-Autor Juan Carlos Moreno Sanchez 
+
+## Extras
+
+Para conocer más información, puede consultar la [documentación oficial](https://ggce.genesys-pgr.org/docs/install/). Asimismo, es posible agregar más componentes a los archivos de configuración o al propio archivo de `docker-compose ubicado en user/lib/cimmyt-ggce-tool/docker/compose.yml`.
+
+
+Autor: Juan Carlos Moreno Sanchez 
 * <j.m.sanchez@cgiar.org> 
 * <j.m.sanchez@cimmyt.org>

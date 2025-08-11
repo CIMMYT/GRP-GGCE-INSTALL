@@ -90,22 +90,24 @@ deployment::prepare_resources() {
         return 1
     fi
     ui::echo-message "Creando el usuario de base de datos exitosamente." "success"
-    ui::echo-message "Se inicio la aplicación GGCE-API."
-    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-api > /dev/null; then
-        ui::echo-message "Al iniciar la aplicacion GGCE-API." "error"
-        return 1
-    fi
-    ui::echo-message "Se inicio la aplicación GGCE-UI."
-    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-ui > /dev/null; then
-        ui::echo-message "No fue posible iniciar la aplicacion GGCE-UI." "error"
-        return 1
-    fi
-
-    ui::echo-message "Se inicio el proxy GGCE-TRAEFIK."
+    ui::echo-message "Se da inicio el proxy GGCE-TRAEFIK."
     if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-traefik > /dev/null; then
         ui::echo-message "No fue posible iniciar el proxy GGCE-TRAEFIK." "error"
         return 1
     fi
+    ui::echo-message "Inicio GGCE-TRAEFIK." "success"
+    ui::echo-message "Se da inicio la aplicación GGCE-API."
+    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-api > /dev/null; then
+        ui::echo-message "Al iniciar la aplicacion GGCE-API." "error"
+        return 1
+    fi
+    ui::echo-message "Inicio GGCE-API." "success"
+    ui::echo-message "Se da inicio la aplicación GGCE-UI."
+    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-ui > /dev/null; then
+        ui::echo-message "No fue posible iniciar la aplicacion GGCE-UI." "error"
+        return 1
+    fi
+    ui::echo-message "Inicio GGCE-UI." "success"
 
     return 0
 }
@@ -123,7 +125,8 @@ deployment::start_resources() {
         return 1
     fi
     ui::echo-message "Iniciando los servicios..."
-    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-mssql ggce-api ggce-ui
+    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-traefik ggce-mssql 
+    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-api ggce-ui
     return 0
 }
 

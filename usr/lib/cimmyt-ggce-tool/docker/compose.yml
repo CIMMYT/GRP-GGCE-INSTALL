@@ -12,6 +12,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./traefik/:/opt/traefik/
+      - /etc/cimmyt-ggce-tool/cert:/cert
     networks:
       - ggce-network
 
@@ -80,8 +81,8 @@ services:
       - DB_USERNAME=${USER_DB}
       - DB_PASSWORD=${PASSWORD_DB}
       # GGCE URLs
-      - BASE_URL=http://${API_URL}
-      - FRONTEND_URL=http://${FRONTEND_URL}
+      - BASE_URL=https://${API_URL}
+      - FRONTEND_URL=https://${FRONTEND_URL}
       # Advanced options
       - CACHE_LIBRARY=ehcache
       - JAVA_OPTIONS=-Xlog:gc -XX:+UseG1GC -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=90.0 -Djava.awt.headless=true -server -Dnetworkaddress.cache.ttl=60 -Dcom.sun.security.enableAIAcaIssuers=true --add-modules java.se --add-exports java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED
@@ -107,9 +108,9 @@ services:
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env
     environment:
-      - API_URL=http://${API_URL}
-      - API_URL_INTERNAL=http://ggce-api:8080
-      - ORIGIN=http://${FRONTEND_URL}
+      - API_URL=https://${API_URL}
+      - API_URL_INTERNAL=https://ggce-api:8080
+      - ORIGIN=https://${FRONTEND_URL}
       - NAME=${NAME_GGCE_APLICATION}
       - NAME_SHORT=${NAME_GGCE_APLICATION_SORT}
     labels:
@@ -144,6 +145,13 @@ services:
     networks:
       - ggce-network
 
+  ggce-cert:
+    image: alpine:3.19
+    container_name: ggce-cert
+    command: >
+      sh -c "apk add --no-cache openssl && mkdir -p /output && openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /output/local.key -out /output/local.crt -subj '/C=MX/ST=CDMX/L=CDMX/O=LocalDev/OU=IT/CN=ggce.local' -addext 'subjectAltName=DNS:ggce.local,DNS:ggceapi.local'"
+    volumes:
+      - /etc/cimmyt-ggce-tool/cert:/output
 networks:
   ggce-network:
     external: true
@@ -154,7 +162,7 @@ volumes:
     external: true
   ggce-data-api:
     external: true
-  ggce-traefik-data:
+  ggce-data-cert:
     external: true
 
 

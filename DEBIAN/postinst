@@ -3,3 +3,5 @@
 set -e
 mkdir -p /etc/cimmyt-ggce-tool/version-tracker
 chmod 755 /etc/cimmyt-ggce-tool/version-tracker
+mkdir -p /etc/cimmyt-ggce-tool/cert
+chmod 755 /etc/cimmyt-ggce-tool/cert

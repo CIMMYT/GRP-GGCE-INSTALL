@@ -56,7 +56,7 @@ deployment::prepare_resources() {
     fi
     ui::echo-message "La red de Docker 'ggce-network' está lista." "success"
 
-    local volumes_to_manage=("ggce-database-store" "ggce-database-log" "ggce-data-api" "ggce-traefik-data")
+    local volumes_to_manage=("ggce-database-store" "ggce-database-log" "ggce-data-api" "ggce-data-cert")
     ui::echo-message "Recreando los volúmenes de Docker: ${volumes_to_manage[*]}"
     for volume in "${volumes_to_manage[@]}"; do
         docker volume rm "$volume" &>/dev/null || true
@@ -89,6 +89,13 @@ deployment::prepare_resources() {
     if ! database::create_user "$DB_NAME" "$USER_DB" "$PASSWORD_DB"; then
         return 1
     fi
+    ui::echo-message "Creando certificado y llave."
+    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-cert > /dev/null; then
+        ui::echo-message "No fue posible iniciar el certificado GGCE-CERT." "error"
+        return 1
+    fi
+    docker compose --env-file $file_env -f "$source_file_compose" down ggce-cert
+    ui::echo-message "Se creo el certificado en GGCE-CERT." "success"
     ui::echo-message "Creando el usuario de base de datos exitosamente." "success"
     ui::echo-message "Se da inicio el proxy GGCE-TRAEFIK."
     if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-traefik > /dev/null; then

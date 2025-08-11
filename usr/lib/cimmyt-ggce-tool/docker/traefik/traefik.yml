@@ -1,0 +1,31 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+debug: true
+log:
+  level: debug
+entryPoints:
+  http:
+    address: :80
+  https:
+    address: :443
+    tls:
+providers:
+  providersThrottleDuration: 5s
+  docker:
+    exposedByDefault: false
+  file:
+    filename: /opt/traefik/dynamic.yml
+    watch: true
+accessLog:
+  fields:
+    defaultMode: keep
+    headers:
+      defaultMode: keep
+      names:
+        Authorization: drop
+        Content-Type: keep
+        Cookie: drop
+        Set-Cookie: drop
+api:
+  insecure: true

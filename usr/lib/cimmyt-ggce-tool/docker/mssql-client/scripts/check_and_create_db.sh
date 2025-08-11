@@ -36,3 +36,5 @@ END"
 /opt/mssql-tools/bin/sqlcmd -S ggce-mssql -U sa -P "$SA_PASSWORD" -Q "$SQL_COMMAND"
 
 echo "--- Check for [$DB_NAME] completed. ---"
+
+exit 0

@@ -1,5 +1,5 @@
 Package: cimmyt-ggce-tool
-Version: 2025.1.1
+Version: 2025.1.2
 Architecture: amd64
 Depends: docker-ce (>= 28.1.1), jq
 Maintainer: Juan Carlos Moreno Sanchez <j.m.sanchez@cimmyt.org>

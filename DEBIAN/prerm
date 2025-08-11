@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# prerm script for cimmyt-ggce-tool
+# This script is executed before the package is removed.
+
+set -e
+
+case "$1" in
+    remove|purge|upgrade|deconfigure)
+        docker compose --env-file /etc/cimmyt-ggce-tool/config.env -f /usr/lib/cimmyt-ggce-tool/docker/compose.yml down
+        rm -f /etc/cimmyt-ggce-tool/version-tracker/version.json
+        ;;
+    *)
+        # No-op for other cases like 'failed-upgrade'
+        ;;
+esac
+
+exit 0

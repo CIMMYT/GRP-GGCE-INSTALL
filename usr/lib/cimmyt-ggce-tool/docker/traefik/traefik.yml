@@ -28,4 +28,5 @@ accessLog:
         Cookie: drop
         Set-Cookie: drop
 api:
+  dashboard: true
   insecure: true

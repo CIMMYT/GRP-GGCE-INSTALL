@@ -1,15 +1,4 @@
-#
-# This goes into traefik/dynamic.yml
-
 tls:
-  stores:
-    default: {}
-#      defaultCertificate:
-#        certFile: /opt/traefik/default.crt
-#        keyFile: /opt/traefik/default.key
-  options:
-    default:
-      sniStrict: true
   certificates:
-    - certFile: /opt/traefik/ggce-chain.crt
-      keyFile: /opt/traefik/ggce.key
+    - certFile: "/etc/traefik/certs/cert.crt"
+      keyFile: "/etc/traefik/certs/key.key"

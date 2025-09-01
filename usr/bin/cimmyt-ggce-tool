@@ -110,8 +110,7 @@ run_install() {
     fi
     ui::echo-message "Contenedores, volumnes e imagenes fueron implementados correctamente." "success"
 
-    
-
+    ui::echo-message "Puede cambiar la configuracion en /etc/cimmyt-ggce-tool/ asi como agregar sus propios certificados para el protocolo https." "info"
 }
 
 print_usage() {

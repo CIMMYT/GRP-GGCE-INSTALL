@@ -3,7 +3,7 @@ services:
   # It uses the FRONTEND_URL and API_URL for the certificate's Subject Alternative Name (SAN).
   # The certificate is stored in the host directory /etc/cimmyt-ggce-tool/cert.
   ggce-cert-generator:
-    image: alpine:latest
+    image: alpine:3.22.1
     container_name: ggce-cert-generator
     env_file:
       - path: /etc/cimmyt-ggce-tool/config.env

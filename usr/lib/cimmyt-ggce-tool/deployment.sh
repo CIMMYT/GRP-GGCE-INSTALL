@@ -5,18 +5,18 @@ source /usr/lib/cimmyt-ggce-tool/ui.sh
 
 CONFIG_DIR="/etc/cimmyt-ggce-tool"
 LIB_DIR="/usr/lib/cimmyt-ggce-tool"
-
+FILE_ENV="$CONFIG_DIR/config.env"
+SOURCE_FILE_COMPOSE="$LIB_DIR/docker/compose.yml"
 
 
 deployment::load_env() {
-    local file_env="$CONFIG_DIR/config.env"
-    if [ -f "$file_env" ]; then
-        ui::echo-message "Cargando las variables del archivo $file_env..."
+    if [ -f "$FILE_ENV" ]; then
+        ui::echo-message "Cargando las variables del archivo $FILE_ENV..."
         # Use `set -a` and `source` for robustly loading and exporting variables.
         # This correctly handles spaces, quotes, and special characters in values,
         # unlike the previous `grep | xargs` method.
         set -a
-        source "$file_env"
+        source "$FILE_ENV"
         set +a
         # Validar que las variables críticas se hayan cargado correctamente
         if [ -n "$DB_NAME" ]; then
@@ -24,11 +24,11 @@ deployment::load_env() {
             return 0
         else
             ui::echo-message "La variable DB_NAME no está definida o está vacía en el archivo de configuración." "error"
-            ui::echo-message "Por favor, verifique su archivo '$file_env'." "error"
+            ui::echo-message "Por favor, verifique su archivo '$FILE_ENV'." "error"
             return 1
         fi
     else
-        ui::echo-message "El archivo $file_env no fue encontrado." "error"
+        ui::echo-message "El archivo $FILE_ENV no fue encontrado." "error"
         return 1
     fi
 }
@@ -36,8 +36,6 @@ deployment::load_env() {
 
 
 deployment::prepare_resources() {
-    local file_env="$CONFIG_DIR/config.env"
-    local source_file_compose="$LIB_DIR/docker/compose.yml"
     if ! environment::validate_docker; then
         return 1
     fi
@@ -45,7 +43,7 @@ deployment::prepare_resources() {
     if ! environment::port_validation; then
         return 1
     fi
-    docker compose --env-file $file_env -f $source_file_compose down
+    docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" down
     echo "Preparando recursos de Docker"
     if ! docker network inspect ggce-network &>/dev/null; then
         ui::echo-message "Creando la red de Docker 'ggce-network'..."
@@ -67,10 +65,10 @@ deployment::prepare_resources() {
     done
     ui::echo-message "Los volúmenes de Docker están listos." "success"
     ui::echo-message "Construyendo las imágenes de Docker..."
-    docker compose --env-file $file_env -f $source_file_compose build ggce-mssql-client ggce-version-tracker
+    docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" build ggce-mssql-client ggce-version-tracker
     ui::echo-message "Las imágenes de Docker están listas." "success"
     ui::echo-message "Preparando la base de datos y agregando la configuracion."
-    if ! docker compose --env-file $file_env -f $source_file_compose up -d ggce-mssql >/dev/null; then
+    if ! docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" up -d ggce-mssql >/dev/null; then
         ui::echo-message "No es posible iniciar la base de datos." "error"
         return 1
     fi
@@ -91,19 +89,19 @@ deployment::prepare_resources() {
     fi
     ui::echo-message "Creando el usuario de base de datos exitosamente." "success"
     ui::echo-message "Se da inicio el proxy GGCE-TRAEFIK."
-    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-traefik > /dev/null; then
+    if ! docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" up -d ggce-traefik > /dev/null; then
         ui::echo-message "No fue posible iniciar el proxy GGCE-TRAEFIK." "error"
         return 1
     fi
     ui::echo-message "Inicio GGCE-TRAEFIK." "success"
     ui::echo-message "Se da inicio la aplicación GGCE-API."
-    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-api > /dev/null; then
+    if ! docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" up -d ggce-api > /dev/null; then
         ui::echo-message "Al iniciar la aplicacion GGCE-API." "error"
         return 1
     fi
     ui::echo-message "Inicio GGCE-API." "success"
     ui::echo-message "Se da inicio la aplicación GGCE-UI."
-    if ! docker compose --env-file $file_env -f "$source_file_compose" up -d ggce-ui > /dev/null; then
+    if ! docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" up -d ggce-ui > /dev/null; then
         ui::echo-message "No fue posible iniciar la aplicacion GGCE-UI." "error"
         return 1
     fi
@@ -115,9 +113,6 @@ deployment::prepare_resources() {
 
 
 deployment::start_resources() {
-    local file_env="$CONFIG_DIR/config.env"
-    local source_file_compose="$LIB_DIR/docker/compose.yml"
-
     if ! environment::validate_docker; then
         return 1
     fi
@@ -125,16 +120,12 @@ deployment::start_resources() {
         return 1
     fi
     ui::echo-message "Iniciando los servicios..."
-    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-traefik ggce-mssql 
-    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-api ggce-ui
+    docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" up -d ggce-traefik ggce-mssql 
+    docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" up -d ggce-api ggce-ui
     return 0
 }
 
 deployment::stop_resources() {
-    local file_env="$CONFIG_DIR/config.env"
-    local source_file_compose="$LIB_DIR/docker/compose.yml"
-    
-
     if ! environment::validate_docker; then
         ui::echo-message "El servicio de docker no esta instalado." "error"    
         return 1
@@ -144,15 +135,11 @@ deployment::stop_resources() {
         return 1
     fi
     ui::echo-message "Deteniendo los servicios..."
-    docker compose --env-file "$file_env" -f "$source_file_compose" down 
+    docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" down 
     return 0
 }
 
 deployment::stop_only_ggce() {
-    local file_env="$CONFIG_DIR/config.env"
-    local source_file_compose="$LIB_DIR/docker/compose.yml"
-    
-
     if ! environment::validate_docker; then
         ui::echo-message "El servicio de docker no esta instalado." "error"    
         return 1
@@ -162,14 +149,11 @@ deployment::stop_only_ggce() {
         return 1
     fi
     ui::echo-message "Deteniendo los servicios..."
-    docker compose --env-file "$file_env" -f "$source_file_compose" down ggce-api ggce-ui
+    docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" down ggce-api ggce-ui
     return 0
 }
 
 deployment::start_only_ggce() {
-    local file_env="$CONFIG_DIR/config.env"
-    local source_file_compose="$LIB_DIR/docker/compose.yml"
-
     if ! environment::validate_docker; then
         return 1
     fi
@@ -177,18 +161,16 @@ deployment::start_only_ggce() {
         return 1
     fi
     ui::echo-message "Iniciando los servicios..."
-    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-api ggce-ui
+    docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" up -d ggce-api ggce-ui
     return 0
 }
 
 deployment::list_remote_version(){
-    local file_env="$CONFIG_DIR/config.env"
-    local source_file_compose="$LIB_DIR/docker/compose.yml"
     local file_version="$CONFIG_DIR/version-tracker/version.json"
 
     ui::echo-message "Buscando las nuevas versiones de GGCE."
-    docker compose --env-file "$file_env" -f "$source_file_compose" build ggce-version-tracker
-    docker compose --env-file "$file_env" -f "$source_file_compose" up -d ggce-version-tracker
+    docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" build ggce-version-tracker
+    docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" up -d ggce-version-tracker
     sleep 10
     ui::echo-message "Validando la descarga."
     if [ ! -f "$file_version" ]; then
@@ -197,18 +179,15 @@ deployment::list_remote_version(){
         ui::echo-message "No se genero el archivo '$file_version' con la informacion de las versiones." "error"
         return 1
     else
-        docker compose --env-file "$file_env" -f "$source_file_compose" down ggce-version-tracker
+        docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" down ggce-version-tracker
     fi
     return 0
     
 }
 
 deployment::db(){
-    local file_env="$CONFIG_DIR/config.env"
-    local source_file_compose="$LIB_DIR/docker/compose.yml"
-    
     ui::echo-message "Preparando la base de datos y agregando la configuracion."
-    if ! docker compose --env-file $file_env -f $source_file_compose up -d ggce-mssql >/dev/null; then
+    if ! docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" up -d ggce-mssql >/dev/null; then
         ui::echo-message "No es posible iniciar la base de datos." "error"
         return 1
     fi
@@ -227,5 +206,50 @@ deployment::db(){
     if ! database::create_user "$DB_NAME" "$USER_DB" "$PASSWORD_DB"; then
         return 1
     fi
+    return 0
+}
+
+deployment::certificados() {
+    local cert_dir="$CONFIG_DIR/cert"
+    local cert_file="$cert_dir/cert.crt"
+    local key_file="$cert_dir/key.key"
+
+    ui::echo-message "Gestionando certificados SSL para la instalación..."
+
+    # Asegurarse de que el directorio de certificados exista
+    if ! mkdir -p "$cert_dir"; then
+        ui::echo-message "No se pudo crear el directorio para certificados en '$cert_dir'. Verifique los permisos." "error"
+        return 1
+    fi
+
+    # Eliminar certificados existentes para forzar la regeneración durante la instalación
+    if [ -f "$cert_file" ] || [ -f "$key_file" ]; then
+        ui::echo-message "Eliminando certificados SSL existentes para generar unos nuevos..." "warning"
+        if ! rm -f "$cert_file" "$key_file"; then
+            ui::echo-message "No se pudieron eliminar los certificados existentes. Verifique los permisos en '$cert_dir'." "error"
+            return 1
+        fi
+    fi
+
+    ui::echo-message "Generando nuevos certificados SSL autofirmados..."
+    # Usar 'run --rm' para ejecutar el contenedor de un solo uso y limpiarlo automáticamente.
+    # Se captura la salida para poder mostrarla en caso de que ocurra un error.
+    local output
+    output=$(docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" run --rm ggce-cert-generator 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        ui::echo-message "Falló la generación de certificados. Revise el resultado del contenedor anterior." "error"
+        ui::echo-message "Salida del comando de Docker:" "error"
+        echo "$output" >&2
+        return 1
+    fi
+
+    # Verificar que los certificados se crearon correctamente
+    if [ ! -f "$cert_file" ] || [ ! -f "$key_file" ]; then
+        ui::echo-message "Los certificados SSL no fueron encontrados después de la ejecución." "error"
+        return 1
+    fi
+
     return 0
 }

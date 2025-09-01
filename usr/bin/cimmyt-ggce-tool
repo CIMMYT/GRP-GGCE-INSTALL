@@ -96,12 +96,21 @@ run_install() {
       ui::echo-message "Imposible actualizar las nuevas versiones." "error"
       exit 1
     fi
+    ui::echo-message "Se definio la version a usar de GGCE." "success"
+
+    if ! deployment::certificados; then 
+        ui::echo-message "Los certificados no se pueden crear" "error"
+        exit 1
+    fi
+    ui::echo-message "Se creo el certificado para el servidor." "success"
 
     if ! deployment::prepare_resources; then
         ui::echo-message "No fue posible desplegar los servicios." "error"
         exit 1
     fi
     ui::echo-message "Contenedores, volumnes e imagenes fueron implementados correctamente." "success"
+
+    ui::echo-message "Puede cambiar la configuracion en /etc/cimmyt-ggce-tool/ asi como agregar sus propios certificados para el protocolo https." "info"
 }
 
 print_usage() {
@@ -114,7 +123,7 @@ print_usage() {
     ui::echo-message "  -u, --update               Busca y aplica actualizaciones a los componentes de GGCE (API/UI)." "help"
     ui::echo-message "  -s, --server <acción>      Gestiona los contenedores del servidor." "help"
     ui::echo-message "                             Acciones para GGCE (API/UI): --start, --stop, --restart" "help"
-    ui::echo-message "                             Acciones para todos los servicios (incluye DB): --start-all, --stop-all" "help"
+    ui::echo-message "                             Acciones para todos los servicios (incluye DB): --start-all, --stop-all, --restart-all" "help"
     ui::echo-message "  -v, --version              Muestra la información de la versión." "help"
     echo 
     ui::echo-message "Ejemplos:" "help"
@@ -179,8 +188,12 @@ case "$1" in
       --stop-all)
         deployment::stop_resources
         ;;
+      --restart-all)
+        deployment::stop_resources
+        deployment::start_resources
+        ;;
       *)
-        ui::echo-message "Acción inválida para '$1'. Use --start, --stop, o --restart.." "warning"
+        ui::echo-message "Acción inválida para '$1'. Use --start, --stop, --restart, --start-all, --stop-all o --restart-all..." "warning"
         print_usage
         exit 1
         ;;

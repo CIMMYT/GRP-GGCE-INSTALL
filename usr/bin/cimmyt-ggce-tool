@@ -88,6 +88,12 @@ run_install() {
     fi
     ui::echo-message "La configuarcion fue creada con exito." "success"
 
+    if ! deployment::prepare_resources; then
+        ui::echo-message "No fue posible desplegar los servicios." "error"
+        exit 1
+    fi
+    ui::echo-message "Contenedores, volumnes e imagenes fueron implementados correctamente." "success"
+
     if ! deployment::list_remote_version; then
       ui::echo-message "No se pudo acceder a las nuevas versiones." "error"
       exit 1
@@ -103,12 +109,6 @@ run_install() {
         exit 1
     fi
     ui::echo-message "Se creo el certificado para el servidor." "success"
-
-    if ! deployment::prepare_resources; then
-        ui::echo-message "No fue posible desplegar los servicios." "error"
-        exit 1
-    fi
-    ui::echo-message "Contenedores, volumnes e imagenes fueron implementados correctamente." "success"
 
     ui::echo-message "Puede cambiar la configuracion en /etc/cimmyt-ggce-tool/ asi como agregar sus propios certificados para el protocolo https." "info"
 }

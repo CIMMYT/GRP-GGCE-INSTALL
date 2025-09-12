@@ -17,6 +17,7 @@ if [ "$1" = "purge" ]; then
         for volume in $volumes_to_manage; do
             docker volume rm "$volume" >/dev/null 2>&1 || true
         done
+        docker network rm ggce-network >/dev/null 2>&1 || true
     fi
 fi
 

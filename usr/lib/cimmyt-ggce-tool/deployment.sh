@@ -33,9 +33,7 @@ deployment::load_env() {
     fi
 }
 
-
-
-deployment::prepare_resources() {
+deployment::prepare_network_volumnes() {
     if ! environment::validate_docker; then
         return 1
     fi
@@ -64,6 +62,14 @@ deployment::prepare_resources() {
         fi
     done
     ui::echo-message "Los volúmenes de Docker están listos." "success"
+}
+
+
+deployment::prepare_resources() {
+    if ! deployment::prepare_network_volumnes; then
+        return 1
+    fi
+
     ui::echo-message "Construyendo las imágenes de Docker..."
     docker compose --env-file "$FILE_ENV" -f "$SOURCE_FILE_COMPOSE" build ggce-mssql-client ggce-version-tracker
     ui::echo-message "Las imágenes de Docker están listas." "success"
